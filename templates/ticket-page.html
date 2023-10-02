@@ -1,0 +1,75 @@
+{% extends 'bootstrap/main-base.html' %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+{% block title %}
+    FerretTickets
+{% endblock %}
+
+
+{% block content %}
+
+    <!--
+        TIPS about using Bootstrap-Flask:
+        https://github.com/helloflask/bootstrap-flask
+        https://bootstrap-flask.readthedocs.io/
+    -->
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+                <!-- Delete Modal -->
+                <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog"
+                     aria-labelledby="deleteModalTitle" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalTitle">Delete Ticket?</h5>
+                                <button type="button" class="btn btn-light close" data-bs-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                This operation cannot be undone
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <a role="button" class="btn btn-danger" href="/ticket?t={{ ticket_id }}&deleteticket=1">Delete</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <h1 class="pt-5 pb-2">{{ ticket_title }}</h1>
+                <div class="container-fluid">
+                    <span class="badge text-bg-primary"
+                          style="margin-left: 10px">Created By: {{ ticket_creator }}</span>
+                    <span class="badge {{ badge_background_colour }}"
+                          style="margin-left: 10px">{{ ticket_state }}</span>
+                </div>
+                <p class="pt-2">{{ ticket_description }}</p>
+                <div class="container-fluid">
+                    <a role="button" href="/ticket?t={{ ticket_id }}&updateticket=1"
+                       class="btn btn-primary {{ update_disabled | safe }}">Change
+                        ticket details</a>
+                    <button type="button" class="btn btn-danger {{ delete_disabled | safe }}" data-bs-toggle="modal"
+                            data-bs-target="#deleteModal">Delete
+                        Ticket
+                    </button>
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown"
+                            aria-expanded="false" {{ status_disabled }}>
+                        Set Ticket State
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="/ticket?t={{ ticket_id }}&updatestatus=backlog">Backlog</a>
+                        </li>
+                        <li><a class="dropdown-item" href="/ticket?t={{ ticket_id }}&updatestatus=indev">In
+                            Development</a></li>
+                        <li><a class="dropdown-item" href="/ticket?t={{ ticket_id }}&updatestatus=done">Complete</a>
+                        </li>
+                    </ul>
+                </div>
+                <p class="pt-5"><strong>{{ message }}</strong></p>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

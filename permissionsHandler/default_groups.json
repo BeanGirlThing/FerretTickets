@@ -1,0 +1,12 @@
+{
+  "groups": [
+    {
+      "name": "superuser",
+      "permissions": "ADMIN"
+    },
+    {
+      "name": "default",
+      "permissions": "READ_TICKETS,CREATE_TICKETS,UPDATE_TICKETS,RESOLVE_OWN_TICKETS"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{% extends 'bootstrap/main-base.html' %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+{% block title %}
+    FerretTickets
+{% endblock %}
+
+
+{% block content %}
+
+    <!--
+        TIPS about using Bootstrap-Flask:
+        https://github.com/helloflask/bootstrap-flask
+        https://bootstrap-flask.readthedocs.io/
+    -->
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+                <p class="lead", style="color: red;">The operation you just performed is invalid</p>
+                <p class="small">If you think this is an error, please contact an administrator</p>
+                <p class="pt-5"><strong>Redirecting...</strong></p>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

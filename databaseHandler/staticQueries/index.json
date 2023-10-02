@@ -1,0 +1,14 @@
+{
+  "createTables": [
+    "createUsergroupsTable.sql",
+    "createUsersTable.sql",
+    "createInviteCodesTable.sql",
+    "createTicketsTable.sql"
+  ],
+  "prettierTablenames": {
+    "tickets": "Tickets",
+    "inviteCodes": "Invite Codes",
+    "usergroups": "UserGroups",
+    "users": "Users"
+  }
+}
