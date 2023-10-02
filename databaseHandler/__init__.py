@@ -286,6 +286,9 @@ class DatabaseHandler(object):
 
         response = self.cursor.fetchone()
 
+        if response is None:
+            return False
+
         return response if len(response) != 0 else False
 
     def check_invite_code(self, code: str):

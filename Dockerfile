@@ -47,4 +47,5 @@ USER appuser
 EXPOSE 80
 
 # Run the application.
-ENTRYPOINT ["python3.11", "app.py"]
+CMD ["/app/app.py"]
+ENTRYPOINT ["python3.11"]
