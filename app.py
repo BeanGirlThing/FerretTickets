@@ -174,7 +174,7 @@ def register():
 @app.route("/", methods=['POST', 'GET'])
 @login_required
 def index(user_id, user_permission_group, username):
-    table_list = generate_table_list(user_permission_group, "/")
+    table_list = generate_table_list(user_permission_group)
     print(table_list)
 
     all_tickets = dbHandler.get_all_tickets()
@@ -352,7 +352,7 @@ def create_ticket(user_id, user_permission_group, username):
 @app.route("/inviteCodes", methods=['POST', 'GET'])
 @login_required
 def invite_codes(user_id, user_permission_group, username):
-    table_list = generate_table_list(user_permission_group, "/inviteCodes")
+    table_list = generate_table_list(user_permission_group)
 
     create_invite_code_button_disabled = "disabled"
     if user_permission_group.has_permission("CREATE_CODES"):
@@ -383,7 +383,7 @@ def new_invite_code(user_id, user_permission_group, username):
 @app.route("/usergroups", methods=['POST', 'GET'])
 @login_required
 def user_groups(user_id, user_permission_group, username):
-    table_list = generate_table_list(user_permission_group, "/usergroups")
+    table_list = generate_table_list(user_permission_group)
 
     create_user_group_button_disabled = "disabled"
     if user_permission_group.has_permission("CREATE_CODES"):
@@ -413,7 +413,7 @@ def new_user_group(user_id, user_permission_group, username):
 @app.route("/users", methods=['POST', 'GET'])
 @login_required
 def users(user_id, user_permission_group, username):
-    table_list = generate_table_list(user_permission_group, "/users")
+    table_list = generate_table_list(user_permission_group)
 
     # create_user_group_button_disabled = "disabled"
     # if user_permission_group.has_permission("CREATE_CODES"):
@@ -452,19 +452,18 @@ def logout():
 
 def get_allowed_page_by_permission(permission_group: PermissionGroupObject):
     if permission_group.has_permission("READ_TICKETS"):
-        return "/"
+        return url_for("index")
     if permission_group.has_permission("READ_CODES"):
-        return "/inviteCodes"
+        return url_for("invite_codes")
     if permission_group.has_permission("READ_USERGROUPS"):
-        return "/usergroups"
+        return url_for("user_groups")
     if permission_group.has_permission("READ_USERS"):
-        return "/users"
+        return url_for("users")
     return None
 
 
-def generate_table_list(permission_group: PermissionGroupObject, current_page: str):
+def generate_table_list(permission_group: PermissionGroupObject):
     visible_tables = []
-    print(url_for("invite_codes"))
     if permission_group.has_permission("READ_TICKETS"):
         visible_tables.append(url_for("index"))
     if permission_group.has_permission("READ_CODES"):
@@ -476,11 +475,11 @@ def generate_table_list(permission_group: PermissionGroupObject, current_page: s
 
     pretty_names = dbHandler.return_prettier_table_names()
 
+    current_url = request.url_rule
+
     rendered_table_items = []
     for table in zip(visible_tables, pretty_names.values()):
-        if current_page == "/" and table[0] == "tickets":
-            rendered_table_items.append(render_template("elements/table-active-item.html", table_name=table[1], destination=url_for("index")))
-        elif current_page == table[0]:
+        if str(current_url) == table[0]:
             rendered_table_items.append(
                 render_template("elements/table-active-item.html", table_name=table[1], destination=table[0]))
         else:
