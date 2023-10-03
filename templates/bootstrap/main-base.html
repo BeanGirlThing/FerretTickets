@@ -33,9 +33,19 @@
     });
 </script>
 
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text);
+        const copyAlert = document.getElementById('copiedToast');
+        const bsToast = new bootstrap.Toast(copyAlert);
+        bsToast.show();
+    }
+</script>
+
 <!-- Your page content -->
+
 <div class="container-fluid" style="margin-bottom:20px;">
-    <div class="col-md col-lg mx-lg-auto mx-md-auto">
+    <div class="col-md col-lg mx-lg-auto mx-md-auto" style="position: relative;">
         <nav id="navbar_top" class="navbar navbar-expand-lg bg-light">
             <div class="container-fluid">
                 <a class="navbar-brand" href="/">FerretTickets</a>
@@ -53,6 +63,12 @@
                 </div>
             </div>
         </nav>
+        <div class="toast" id="copiedToast" data-bs-delay="1000" style="position: absolute; top: 0; right: 0;">
+            <div class="toast-header">
+                <strong class="me-auto"><i class="bi-gift-fill"></i>Copied to Clipboard!</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
     </div>
 </div>
 {% block content %}{% endblock %}

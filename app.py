@@ -4,7 +4,7 @@ import sys
 import secrets
 from functools import wraps
 
-from flask import Flask, redirect, make_response, render_template, request, abort, url_for
+from flask import Flask, redirect, make_response, render_template, request, abort, url_for, flash
 import logging
 import datetime
 from django.utils.text import slugify
@@ -14,6 +14,7 @@ from flask_bootstrap import Bootstrap5
 
 from flask_wtf import CSRFProtect
 
+import permissionsHandler
 from databaseHandler import DatabaseHandler
 from passwordHandler import PasswordHandler
 from sessionHandler import SessionHandler
@@ -221,8 +222,11 @@ def ticket_details(user_id, user_permission_group, username):
     delete_disabled = ""
     status_disabled = ""
 
-    if "t" not in query_parameters:
-        return redirect(url_for("index"))
+    if "t" not in query_parameters.keys():
+        return make_response(
+            render_template("invalid-operation.html",
+                            username=username)
+        ), {"Refresh": f"3; url={url_for('index')}"}
 
     ticket = dbHandler.get_ticket(int(query_parameters["t"]))
     ticket_creator = ticket[1]
@@ -366,8 +370,33 @@ def invite_codes(user_id, user_permission_group, username):
                         )
     ]
 
+    invite_codes = dbHandler.get_all_invite_codes()
+
+    revoke_disabled = "disabled"
+    if user_permission_group.has_permission("REVOKE_CODES"):
+        revoke_disabled = ""
+
+    invite_code_accordians = []
+    for code in invite_codes:
+        specific_code_revoke_button = revoke_disabled
+        badge_text, badge_background = get_pretty_invite_code_state(bool(code[3]), code[4])
+        creator_username = dbHandler.get_username_from_id(code[2])[0]
+        is_active = dbHandler.check_invite_code(code_id=int(code[0]))
+        if not is_active:
+            specific_code_revoke_button = "disabled"
+        invite_code_accordians.append(
+            render_template("elements/invite-code-accordion.html",
+                            invite_code_id=code[0],
+                            invite_code=code[1],
+                            invite_code_creator=creator_username,
+                            badge_background_colour=badge_background,
+                            invite_code_state=badge_text,
+                            revoke_disabled=specific_code_revoke_button
+                            )
+        )
+
     response = make_response(render_template("main.html",
-                                             items_list="Hello World",
+                                             items_list=invite_code_accordians,
                                              table_list=table_list,
                                              function_buttons_list=create_invite_button,
                                              username=username))
@@ -377,7 +406,45 @@ def invite_codes(user_id, user_permission_group, username):
 @app.route("/createCode")
 @login_required
 def new_invite_code(user_id, user_permission_group, username):
-    return "Hello world"
+    if user_permission_group.has_permission("CREATE_CODES"):
+        dbHandler.create_invite_code(user_id)
+        flash("Code successfully created!")
+        return redirect(url_for("invite_codes"))
+    else:
+        return make_response(
+            render_template("permission-failed.html", username=username)
+        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+
+
+@app.route("/revokeCode")
+@login_required
+def revoke_invite_code(user_id, user_permission_group, username):
+    if not user_permission_group.has_permission("REVOKE_CODES"):
+        return make_response(
+            render_template("permission-failed.html", username=username)
+        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+
+    query_parameters = request.args.to_dict()
+    if "c" not in query_parameters.keys():
+        return make_response(
+            render_template("invalid-operation.html", username=username)
+        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+
+    try:
+        code_id = int(query_parameters["c"])
+    except ValueError:
+        return make_response(
+            render_template("invalid-operation.html", username=username)
+        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+
+    if not dbHandler.check_invite_code(code_id=code_id):
+        return make_response(
+            render_template("invalid-operation.html", username=username)
+        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+
+    dbHandler.revoke_invite_code(code_id)
+    flash("Code successfully revoked!")
+    return redirect(url_for("invite_codes"))
 
 
 @app.route("/usergroups", methods=['POST', 'GET'])
@@ -386,7 +453,7 @@ def user_groups(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
 
     create_user_group_button_disabled = "disabled"
-    if user_permission_group.has_permission("CREATE_CODES"):
+    if user_permission_group.has_permission("CREATE_USERGROUPS"):
         create_user_group_button_disabled = ""
 
     create_group_button = [
@@ -396,6 +463,15 @@ def user_groups(user_id, user_permission_group, username):
                         disabled=create_user_group_button_disabled
                         )
     ]
+
+    usergroups_list = dbHandler.get_all_user_groups()
+    usergroups_list_object = []
+    for group in usergroups_list:
+        usergroups_list_object.append(permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, group))
+
+
+
+
 
     response = make_response(render_template("main.html",
                                              items_list="Hello World",
@@ -495,6 +571,15 @@ def get_pretty_ticket_state(state: str):
         return "In Dev", "text-bg-warning"
     if state == "done":
         return "Complete", "text-bg-success"
+
+def get_pretty_invite_code_state(revoked: bool, used_by: str = None):
+    if used_by is None:
+        if revoked:
+            return "Revoked", "text-bg-danger"
+        else:
+            return "Active", "text-bg-success"
+    else:
+        return f"Used By: {used_by}", "text-bg-info"
 
 
 def get_logfile_absolute_path(path: str = None):

@@ -205,6 +205,21 @@ class DatabaseHandler(object):
 
         return self.cursor.fetchall()
 
+    def get_all_invite_codes(self):
+        get_invites_query = SQLLiteQuery.from_(self.inviteCodesTable) \
+            .select("ID", "code", "creator", "revoked", "used_by")
+
+        self.execute_query(get_invites_query.get_sql())
+
+        return self.cursor.fetchall()
+
+    def get_all_user_groups(self):
+        get_usergroups_query = SQLLiteQuery.from_(self.userGroupsTable) \
+            .select("ID", "group_title", "permissions")
+        self.execute_query(get_usergroups_query.get_sql())
+
+        return self.cursor.fetchall()
+
     def get_ticket(self, ticket_id: int):
         get_tickets_query = SQLLiteQuery.from_(self.ticketsTable) \
             .select("ID", "creator", "title", "description", "state") \
@@ -291,10 +306,17 @@ class DatabaseHandler(object):
 
         return response if len(response) != 0 else False
 
-    def check_invite_code(self, code: str):
-        invite_lookup = SQLLiteQuery.from_(self.inviteCodesTable) \
-            .select("*") \
-            .where(self.inviteCodesTable.code == code)
+    def check_invite_code(self, code: str=None, code_id: int=None):
+        if code is not None:
+            invite_lookup = SQLLiteQuery.from_(self.inviteCodesTable) \
+                .select("*") \
+                .where(self.inviteCodesTable.code == code)
+        elif code_id is not None:
+            invite_lookup = SQLLiteQuery.from_(self.inviteCodesTable) \
+                .select("*") \
+                .where(self.inviteCodesTable.ID == code_id)
+        else:
+            raise ValueError
 
         self.execute_query(invite_lookup.get_sql())
 
@@ -309,6 +331,13 @@ class DatabaseHandler(object):
         update_invite_code = SQLLiteQuery.update(self.inviteCodesTable) \
             .set(self.inviteCodesTable.used_by, used_by) \
             .where(self.inviteCodesTable.code == code)
+        self.execute_query(update_invite_code.get_sql())
+        self.commit_to_database()
+
+    def revoke_invite_code(self, code_id: int):
+        update_invite_code = SQLLiteQuery.update(self.inviteCodesTable) \
+            .set(self.inviteCodesTable.revoked, True) \
+            .where(self.inviteCodesTable.ID == code_id)
         self.execute_query(update_invite_code.get_sql())
         self.commit_to_database()
 
