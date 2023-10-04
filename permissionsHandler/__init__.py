@@ -13,7 +13,8 @@ class PermissionGroupObject(object):
     DATABASE_GROUP_ID = None
 
     PERMISSIONS = None
-    PERMISSION_TOPICS = []
+    PERMISSION_CATEGORIES = ["TICKETS", "INVITECODES", "USERACCOUNTS", "USERGROUPS"]
+    PERMISSION_DESCRIPTIONS = None
 
     logger = None
 
@@ -22,6 +23,9 @@ class PermissionGroupObject(object):
 
         self.logger = logging.getLogger(
             f"{config.get('logger', 'logger_name')}.GroupPermissionObject-for-{self.GROUP_TITLE}")
+
+        with open("permissionsHandler/permissions_description.json") as f:
+            self.PERMISSION_DESCRIPTIONS = json.loads(f.read())
 
         #  Following are the permissions a UserGroup within the system can have.
         self.PERMISSIONS = {
@@ -60,12 +64,6 @@ class PermissionGroupObject(object):
             }
         }
 
-        for permission_topic in self.PERMISSIONS.keys():
-            if permission_topic == "ADMIN":
-                continue
-            else:
-                self.PERMISSION_TOPICS.append(permission_topic)
-
         if permissions_string is None:
             return
 
@@ -78,73 +76,99 @@ class PermissionGroupObject(object):
         for permission in permissions_list:
             if permission == "":
                 continue
-            if permission in self.PERMISSION_TOPICS:
+            if permission in self.PERMISSION_CATEGORIES:
                 for permission_key in self.PERMISSIONS[permission].keys():
                     self.PERMISSIONS[permission][permission_key] = True
             else:
-                topic = self.find_permission_topic_location(permission)
-                if topic is not False:
-                    self.PERMISSIONS[topic][permission] = True
+                permission_category_location = self.find_permission_category_location(permission)
+                if permission_category_location is not False:
+                    self.PERMISSIONS[permission_category_location][permission] = True
                 else:
                     self.logger.warning(f"{permission} is not a valid permission, skipping")
 
         self.logger.info("Object created Successfully!")
 
-    def find_permission_topic_location(self, permission_name: str):
-        for topic in self.PERMISSION_TOPICS:
-            for key in self.PERMISSIONS[topic]:
+    def find_permission_category_location(self, permission_name: str) -> bool | str:
+        for category in self.PERMISSION_CATEGORIES:
+            for key in self.PERMISSIONS[category]:
                 if key == permission_name:
-                    return topic
+                    return category
         return False
 
-    def update_permissions(self, **kwargs: bool):
-        """Updates permissions for the permission arguments given
-                :Keyword Arguments:
-                **Permission Name Literal (bool) : True or False
-            """
-        for permission, value in kwargs.items():
+    def update_permissions(self, permission_list: dict):
+        for permission, value in permission_list.items():
             if permission == "ADMIN":
                 self.PERMISSIONS["ADMIN"] = value
                 continue
-            if permission in self.PERMISSION_TOPICS:
+            if permission in self.PERMISSION_CATEGORIES:
                 for permission_key in self.PERMISSIONS[permission].keys():
                     self.PERMISSIONS[permission][permission_key] = value
             else:
-                topic = self.find_permission_topic_location(permission)
-                if topic is False:
-                    self.logger.warning(f"{permission} is not a valid permission")
+                category = self.find_permission_category_location(permission)
+                if category is not False:
+                    self.PERMISSIONS[category][permission] = value
                 else:
-                    self.PERMISSIONS[topic][permission] = value
+                    self.logger.warning(f"{permission} is not a valid permission")
+
 
     def build_permission_string(self):
+        # TODO some shit is broken here and idfk what, check console dipshit
         permission_string = ""
         if self.PERMISSIONS["ADMIN"]:
             return "ADMIN"
 
-        for topic in self.PERMISSION_TOPICS:
-            has_whole_topic = True
-            topic_permission_string = ""
-            for permission, value in self.PERMISSIONS[topic].items():
+        for i, category in enumerate(self.PERMISSION_CATEGORIES):
+            has_whole_category = True
+            category_permission_string = ""
+            for permission, value in self.PERMISSIONS[category].items():
                 if value:
-                    topic_permission_string = f"{topic_permission_string}{permission},"
+                    category_permission_string = f"{category_permission_string}{permission},"
                 else:
-                    has_whole_topic = False
-            if has_whole_topic:
-                permission_string = f"{permission_string}{topic},"
+                    has_whole_category = False
+            if has_whole_category:
+                permission_string = f"{permission_string}{category},"
             else:
-                permission_string = f"{permission_string}{topic_permission_string}"
+                permission_string = f"{permission_string}{category_permission_string}"
+        return permission_string
 
     def has_permission(self, permission_name: str):
         if self.PERMISSIONS["ADMIN"]:
             return True
-        topic = self.find_permission_topic_location(permission_name)
-        if topic is not False:
-            return self.PERMISSIONS[topic][permission_name]
+        category = self.find_permission_category_location(permission_name)
+        if category is not False:
+            return self.PERMISSIONS[category][permission_name]
         else:
             return False
 
+    def has_permission_category(self, permission_category: str):
+        response = True
+        for permission in self.PERMISSIONS[permission_category].values():
+            if not permission:
+                response = False
+        return response
+
+    def get_description_by_permission(self, permission_name):
+        if permission_name in self.PERMISSION_CATEGORIES:
+            return "Permission Category"
+        else:
+            return self.PERMISSION_DESCRIPTIONS[permission_name]
+
+    def is_administrator(self):
+        return self.PERMISSIONS["ADMIN"]
+
+
+
+
+
 
 class PermissionsParser:
+    @staticmethod
+    def get_system_dependant_groups_from_config(config: ConfigParser):
+        return [
+            PermissionGroupObject(config, config.get("system_groups", "supergroup_name"), "ADMIN"),
+            PermissionGroupObject(config, config.get("system_groups", "default_name"), config.get("system_groups", "default_permissions"))
+        ]
+
     @staticmethod
     def get_default_groups_from_file(config: ConfigParser):
         with open("permissionsHandler/default_groups.json", "r") as f:

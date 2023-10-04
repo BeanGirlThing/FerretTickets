@@ -4,6 +4,8 @@ import sqlite3
 from configparser import ConfigParser
 import json
 from pypika import Table, SQLLiteQuery
+
+import permissionsHandler
 from passwordHandler import PasswordHandler
 from permissionsHandler import PermissionGroupObject, PermissionsParser
 from inviteCodeHandler import InviteCodes
@@ -129,28 +131,28 @@ class DatabaseHandler(object):
 
         self.logger.debug("Default Tables created")
 
-        self.logger.debug("Creating default permission groups")
+        self.logger.debug("Creating system dependant UserGroups")
+
+        system_groups = PermissionsParser.get_system_dependant_groups_from_config(self.config)
+        for group in system_groups:
+            self.create_usergroup(group)
+
+        self.logger.debug("Successfully created system dependant UserGroups")
+
+        self.logger.debug("Creating default UserGroups")
 
         default_groups = PermissionsParser.get_default_groups_from_file(self.config)
 
         for group in default_groups:
-            group_creation_query = SQLLiteQuery.into(self.userGroupsTable) \
-                .columns("group_title", "permissions") \
-                .insert(
-                group.GROUP_TITLE,
-                group.build_permission_string()
-            )
-            self.execute_query(group_creation_query.get_sql())
+            self.create_usergroup(group)
 
-        self.commit_to_database()
-
-        self.logger.debug("Successfully created default permission groups")
+        self.logger.debug("Successfully created default UserGroups")
 
         self.logger.debug("Inserting Superuser into Users")
 
-        group_id = self.get_usergroup_id_by_name("superuser")
+        supergroup_group_id = self.get_usergroup_id_by_name(self.config.get("system_groups", "supergroup_name"))
 
-        self.logger.debug(f"Superuser group ID is {str(group_id)}")
+        self.logger.debug(f"Superuser group ID is {str(supergroup_group_id)}")
 
         superuser_hashed_password, superuser_salt = PasswordHandler.hash_password(
             self.config.get("superuser", "password"))
@@ -160,7 +162,7 @@ class DatabaseHandler(object):
             self.config.get("superuser", "username"),
             superuser_hashed_password,
             superuser_salt,
-            group_id
+            supergroup_group_id
         )
         self.execute_query(create_superuser.get_sql())
 
@@ -177,6 +179,24 @@ class DatabaseHandler(object):
 
         if self.config.getboolean("demo_mode", "create_demo_data"):
             self.create_demo_tickets()
+
+    def create_usergroup(self, group: PermissionGroupObject):
+        group_creation_query = SQLLiteQuery.into(self.userGroupsTable) \
+            .columns("group_title", "permissions") \
+            .insert(
+            group.GROUP_TITLE,
+            group.build_permission_string()
+        )
+        self.execute_query(group_creation_query.get_sql())
+        self.commit_to_database()
+
+    def update_usergroup(self, group: PermissionGroupObject):
+        group_creation_query = SQLLiteQuery.update(self.userGroupsTable) \
+            .set("permissions", group.build_permission_string()) \
+            .where(self.userGroupsTable.ID == group.DATABASE_GROUP_ID)
+        print(group_creation_query.get_sql())
+        self.execute_query(group_creation_query.get_sql())
+        self.commit_to_database()
 
     def create_demo_tickets(self):
         with open("demo_tickets.json", "r") as f:
@@ -213,10 +233,40 @@ class DatabaseHandler(object):
 
         return self.cursor.fetchall()
 
+    def set_user_usergroup(self, user: int, usergroup: int):
+        set_user_usergroup_query = SQLLiteQuery.update(self.usersTable) \
+            .set(self.usersTable.usergroup, usergroup) \
+            .where(self.usersTable.ID == user)
+
+        self.execute_query(set_user_usergroup_query.get_sql())
+        self.commit_to_database()
+
+    def delete_usergroup(self, group_id: int):
+        delete_group_query = SQLLiteQuery.from_(self.userGroupsTable) \
+            .where(self.userGroupsTable.ID == group_id) \
+            .delete()
+        self.execute_query(delete_group_query.get_sql())
+        self.commit_to_database()
+
     def get_all_user_groups(self):
         get_usergroups_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("ID", "group_title", "permissions")
         self.execute_query(get_usergroups_query.get_sql())
+
+        return self.cursor.fetchall()
+
+    def get_usergroup_by_id(self, usergroup_id: int):
+        get_usergroup_query = SQLLiteQuery.from_(self.userGroupsTable) \
+            .select("ID", "group_title", "permissions") \
+            .where(self.userGroupsTable.ID == usergroup_id)
+        self.execute_query(get_usergroup_query.get_sql())
+
+        return self.cursor.fetchone()
+
+    def get_all_users(self):
+        get_users_query = SQLLiteQuery.from_(self.usersTable) \
+            .select("ID", "username", "usergroup")
+        self.execute_query(get_users_query.get_sql())
 
         return self.cursor.fetchall()
 

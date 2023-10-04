@@ -1,0 +1,38 @@
+<div class="accordion" id="invite-list">
+    <div class="accordion-item" style="margin-bottom: 10px;">
+        <h2 class="accordion-header" id="headingOne">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapse{{ user_id }}" aria-expanded="false" aria-controls="collapseOne">
+                {{ username }}
+                <span class="badge badge-info"
+                      style="margin-left: 10px">Usergroup: {{ usergroup_name }}</span>
+            </button>
+        </h2>
+
+        <div id="collapse{{ user_id }}" class="accordion-collapse collapse" aria-labelledby="headingOne"
+             data-bs-parent="#accordionExample">
+            <div class="accordion-body">
+                <div class="container" style="margin-top:10px">
+                    <div class="row">
+                        <div class="col-lg d-grid gap-2">
+                            <a role="button" href="{{ update_user_page }}"
+                                   class="btn btn-primary btn-block btn-sm {{ update_disabled | safe }}">Update User</a>
+                        </div>
+                        <div class="col-lg d-grid gap-2">
+                            <div class="col-lg d-grid gap-2" data-toggle="tooltip" data-placement="top"
+                                 title="{{ delete_user_tooltip }}">
+                                <a role="button" href="{{ delete_user_page }}"
+                                   class="btn btn-danger btn-block btn-sm {{ delete_disabled | safe }}">Delete user</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <script>
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip()
+    })
+</script>

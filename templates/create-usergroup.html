@@ -1,0 +1,81 @@
+{% extends 'bootstrap/main-base.html' %}
+{% from 'bootstrap5/form.html' import render_form %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block title %}
+    FerretTickets Create UserGroup
+{% endblock %}
+
+{% block content %}
+
+    <!--
+        TIPS about using Bootstrap-Flask:
+        https://github.com/helloflask/bootstrap-flask
+        https://bootstrap-flask.readthedocs.io/
+    -->
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+
+                <h1 class="pt-5 pb-2">Create New UserGroup</h1>
+
+                <p class="pt-5"><strong>{{ message }}</strong></p>
+
+                <form action="" method="post" novalidate>
+
+                    {{ form.hidden_tag() }}
+
+                    <div class="form-group">
+                        {{ wtf.form_field(form.title) }}
+                    </div>
+
+                    <hr class="hr"/>
+
+                    <div class="container border border-primary rounded" style="padding:10px;">
+                    <div class="form-group">
+                        {% for permission in form.permissions %}
+                            <div class="container bg-light border border-secondary rounded"
+                                 style="margin-top:10px; margin-bottom:10px; padding:10px">
+                                <div class="row">
+                                    <div class="col-md">
+                                        {{ wtf.form_field(permission.permission_selection_field) }}
+                                    </div>
+                                    <div class="col-md">
+                                        {{ wtf.form_field(permission.permission_value) }}
+                                    </div>
+                                </div>
+                                <div class="row" style="margin-top: 10px">
+                                    <div class="col-lg d-grid gap-2">
+                                        {{ wtf.form_field(permission.remove_permission) }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <hr class="hr"/>
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-lg d-grid gap-2">
+                                {{ wtf.form_field(form.additional_permission_button) }}
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <hr class="hr"/>
+
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-lg d-grid gap-2">
+                                {{ wtf.form_field(form.create_group_submit) }}
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

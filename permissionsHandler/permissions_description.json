@@ -1,0 +1,19 @@
+{
+  "ADMIN": "If a group has this permission all permission checks are bypassed and the user is allowed to perform the action. Warning: This is a dangerous permission to assign",
+  "READ_TICKETS": "View all tickets",
+  "CREATE_TICKETS": "Create new tickets",
+  "UPDATE_TICKETS": "Update/Change existing tickets",
+  "DELETE_TICKETS": "Delete existing tickets",
+  "RESOLVE_OWN_TICKETS": "Change the status of tickets created by the user",
+  "RESOLVE_OTHERS_TICKETS": "Change the status of all tickets",
+  "READ_CODES": "View all invite codes",
+  "CREATE_CODES": "Create new invite codes",
+  "REVOKE_CODES": "Revoke existing invite coes",
+  "READ_USERS": "View all system user accounts",
+  "UPDATE_USERS": "Update/Change existing user accounts",
+  "DELETE_USERS": "Delete existing user accounts",
+  "READ_USERGROUPS": "View all UserGroups",
+  "CREATE_USERGROUPS": "Create new UserGroups",
+  "UPDATE_USERGROUPS": "Update/Change existing UserGroups",
+  "DELETE_USERGROUPS": "Delete existing UserGroups"
+}

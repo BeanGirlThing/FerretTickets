@@ -1,25 +1,25 @@
 import configparser
-import os
-import sys
-import secrets
-from functools import wraps
-
-from flask import Flask, redirect, make_response, render_template, request, abort, url_for, flash
-import logging
 import datetime
-from django.utils.text import slugify
+import logging
+import os
+import secrets
+import sys
+from functools import wraps
+from collections import namedtuple
+
 from IPy import IP
-
+from django.utils.text import slugify
+from flask import Flask, redirect, make_response, render_template, request, abort, url_for, flash
 from flask_bootstrap import Bootstrap5
-
 from flask_wtf import CSRFProtect
 
 import permissionsHandler
 from databaseHandler import DatabaseHandler
 from passwordHandler import PasswordHandler
-from sessionHandler import SessionHandler
 from permissionsHandler import PermissionGroupObject
-from serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm
+from serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm, CreateUserGroupForm, \
+    UpdateUserGroupForm
+from sessionHandler import SessionHandler
 
 ####
 # Application Setup
@@ -40,43 +40,74 @@ dbHandler = None
 config = configparser.ConfigParser()
 session_handler = None
 
+system_dependant_users = {}
+system_dependant_usergroups = {}
+
+
 ####
 # Decorators
 ####
+
+def permission_required(permissions: list, page_to_redirect_on_failure: str):
+    def wrapper(f):
+        @wraps(f)
+        def decorator(*args, **kwargs):
+            user_id = session_handler.is_valid_session()
+            user_group = dbHandler.get_user_from_ID(user_id)[4]
+            user_permissions = dbHandler.get_permission_group_object(user_group)
+            username = dbHandler.get_user_from_ID(user_id)[1]
+            for permission in permissions:
+                if not user_permissions.has_permission(permission):
+                    return make_response(
+                        render_template(
+                            "permission-failed.html",
+                            username=username
+                        )
+                    ), {"Refresh": f"3; url={url_for(page_to_redirect_on_failure)}"}
+            return f(*args, **kwargs)
+
+        return decorator
+
+    return wrapper
+
+
+def root_page_permission_redirect_fallback(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        user_id = session_handler.is_valid_session()
+
+        user_permission_group_id = dbHandler.get_user_from_ID(user_id)[4]
+        user_group = dbHandler.get_permission_group_object(user_permission_group_id)
+        allowed_page = get_allowed_page_by_permission(user_group)
+
+        if allowed_page is None:
+            return redirect(
+                url_for("no_permitted_page")
+            )
+
+        if allowed_page != "/":
+            return redirect(
+                allowed_page
+            )
+
+        return f(*args, **kwargs)
+
+    return decorator
 
 
 def login_required(f):
     @wraps(f)
     def decorator(*args, **kwargs):
-        rule = request.url_rule
-
         user_id = session_handler.is_valid_session()
         if user_id is None or user_id is False:
             abort(401)
 
-        user_group = dbHandler.get_user_from_ID(user_id)[4]
-        user_permissions = dbHandler.get_permission_group_object(user_group)
-        allowed_page = get_allowed_page_by_permission(user_permissions)
+        user_permission_group_id = dbHandler.get_user_from_ID(user_id)[4]
+        print(user_permission_group_id)
+        user_group = dbHandler.get_permission_group_object(user_permission_group_id)
         username = dbHandler.get_user_from_ID(user_id)[1]
 
-        if allowed_page is None:
-            abort(409, username)
-
-        match rule:
-            case "/" | "/ticket":
-                if not user_permissions.has_permission("READ_TICKETS"):
-                    abort(403, allowed_page)
-            case "/inviteCodes":
-                if not user_permissions.has_permission("READ_CODES"):
-                    abort(403, allowed_page)
-            case "/usergroups":
-                if not user_permissions.has_permission("READ_USERGROUPS"):
-                    abort(403, allowed_page)
-            case "/users":
-                if not user_permissions.has_permission("READ_USERS"):
-                    abort(403, allowed_page)
-
-        return f(user_id, user_permissions, username, *args, **kwargs)
+        return f(user_id, user_group, username, *args, **kwargs)
 
     return decorator
 
@@ -174,9 +205,9 @@ def register():
 
 @app.route("/", methods=['POST', 'GET'])
 @login_required
+@root_page_permission_redirect_fallback
 def index(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
-    print(table_list)
 
     all_tickets = dbHandler.get_all_tickets()
     display_list = []
@@ -213,6 +244,7 @@ def index(user_id, user_permission_group, username):
 
 @app.route("/ticket", methods=['POST', 'GET'])
 @login_required
+@permission_required(["READ_TICKETS"], "index")
 def ticket_details(user_id, user_permission_group, username):
     query_parameters = request.args.to_dict()
 
@@ -331,13 +363,9 @@ def ticket_details(user_id, user_permission_group, username):
 
 @app.route("/createticket", methods=['POST', 'GET'])
 @login_required
+@permission_required(["CREATE_TICKETS"], "index")
 def create_ticket(user_id, user_permission_group, username):
     create_ticket_form = CreateTicketForm()
-
-    if not user_permission_group.has_permission("CREATE_TICKETS"):
-        response = make_response(
-            render_template("permission-failed.html", username=username))
-        return response, {"Refresh": f"3; url={url_for('index')}"}
 
     if create_ticket_form.validate_on_submit():
         dbHandler.create_ticket(user_id,
@@ -355,6 +383,7 @@ def create_ticket(user_id, user_permission_group, username):
 
 @app.route("/inviteCodes", methods=['POST', 'GET'])
 @login_required
+@permission_required(["READ_CODES"], "index")
 def invite_codes(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
 
@@ -391,7 +420,8 @@ def invite_codes(user_id, user_permission_group, username):
                             invite_code_creator=creator_username,
                             badge_background_colour=badge_background,
                             invite_code_state=badge_text,
-                            revoke_disabled=specific_code_revoke_button
+                            revoke_disabled=specific_code_revoke_button,
+                            revoke_invite_tooltip="Cannot revoke used code" if not is_active else ""
                             )
         )
 
@@ -405,6 +435,7 @@ def invite_codes(user_id, user_permission_group, username):
 
 @app.route("/createCode")
 @login_required
+@permission_required(["CREATE_CODES"], "invite_codes")
 def new_invite_code(user_id, user_permission_group, username):
     if user_permission_group.has_permission("CREATE_CODES"):
         dbHandler.create_invite_code(user_id)
@@ -418,6 +449,7 @@ def new_invite_code(user_id, user_permission_group, username):
 
 @app.route("/revokeCode")
 @login_required
+@permission_required(["REVOKE_CODES"], "invite_codes")
 def revoke_invite_code(user_id, user_permission_group, username):
     if not user_permission_group.has_permission("REVOKE_CODES"):
         return make_response(
@@ -443,12 +475,12 @@ def revoke_invite_code(user_id, user_permission_group, username):
         ), {"Refresh": f"3; url={url_for('invite_codes')}"}
 
     dbHandler.revoke_invite_code(code_id)
-    flash("Code successfully revoked!")
     return redirect(url_for("invite_codes"))
 
 
 @app.route("/usergroups", methods=['POST', 'GET'])
 @login_required
+@permission_required(["READ_USERGROUPS"], "index")
 def user_groups(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
 
@@ -464,44 +496,347 @@ def user_groups(user_id, user_permission_group, username):
                         )
     ]
 
-    usergroups_list = dbHandler.get_all_user_groups()
-    usergroups_list_object = []
+    all_usergroups = dbHandler.get_all_user_groups()
+    all_users = dbHandler.get_all_users()
+    usergroups_list = []
+    for group in all_usergroups:
+        usergroups_list.append(permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, group))
+
+    usergroup_accordion = []
     for group in usergroups_list:
-        usergroups_list_object.append(permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, group))
 
+        group_use_count = 0
+        group_users_list_item = []
+        for user in all_users:
+            if user[2] == group.DATABASE_GROUP_ID:
+                group_users_list_item.append(
+                    render_template("elements/list-display-item.html",
+                                    active="",
+                                    item_description="",
+                                    item_name=user[1]
+                                    )
+                )
+                group_use_count += 1
 
+        administrator_badge_visibility = "invisible"
+        if group.is_administrator():
+            administrator_badge_visibility = ""
 
+        permission_display_items = {}
 
+        for category in group.PERMISSION_CATEGORIES:
+            permission_display_items[category] = []
+            for permission, value in group.PERMISSIONS[category].items():
+                permission_display_items[category].append(
+                    render_template("elements/list-display-item.html",
+                                    active="list-group-item-success" if value or group.is_administrator() else "",
+                                    item_description=group.get_description_by_permission(permission),
+                                    item_name=permission
+                                    )
+                )
+
+        usergroup_accordion.append(render_template("elements/usergroup-accordion.html",
+                                                   usergroup_id=group.DATABASE_GROUP_ID,
+                                                   usergroup_name=group.GROUP_TITLE,
+                                                   admin_badge_visibility=administrator_badge_visibility,
+                                                   used_count=group_use_count,
+                                                   ticket_permissions=permission_display_items["TICKETS"],
+                                                   invite_permissions=permission_display_items["INVITECODES"],
+                                                   account_permissions=permission_display_items["USERACCOUNTS"],
+                                                   usergroup_permissions=permission_display_items["USERGROUPS"],
+                                                   group_users=group_users_list_item,
+                                                   update_usergroup_page=url_for("update_existing_group",
+                                                                                 g=group.DATABASE_GROUP_ID),
+                                                   update_usergroup_disabled="" if user_permission_group.has_permission(
+                                                       "UPDATE_USERGROUPS") and not group.DATABASE_GROUP_ID == system_dependant_usergroups["supergroup"] else "disabled",
+                                                   update_usergroup_tooltip=f"Cannot change permissions on system dependant group {group.GROUP_TITLE}" if group.DATABASE_GROUP_ID == system_dependant_usergroups["supergroup"] else "",
+                                                   delete_group_page=url_for("delete_usergroups",
+                                                                             g=group.DATABASE_GROUP_ID),
+                                                   delete_disabled="disabled" if group.DATABASE_GROUP_ID in system_dependant_usergroups.values() or not user_permission_group.has_permission("DELETE_USERGROUPS") else "",
+                                                   delete_usergroup_tooltip=f"Cannot delete system dependant UserGroup" if group.DATABASE_GROUP_ID in system_dependant_usergroups.values() else ""
+                                                   )
+                                   )
 
     response = make_response(render_template("main.html",
-                                             items_list="Hello World",
+                                             items_list=usergroup_accordion,
                                              table_list=table_list,
                                              function_buttons_list=create_group_button,
                                              username=username))
     return response
 
-@app.route("/createGroup")
+
+@app.route("/deleteGroup")
 @login_required
+@permission_required(["DELETE_USERGROUPS"], "user_groups")
+def delete_usergroups(user_id, user_permission_group, username):
+    logger.info(f"Attempting to delete group {request.args.get('g')}")
+    all_usergroups = dbHandler.get_all_user_groups()
+    all_users = dbHandler.get_all_users()
+    try:
+        group_id = int(request.args.get("g"))
+    except ValueError:
+        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    group_to_delete = None
+    for group in all_usergroups:
+        if group[0] == group_id:
+            group_to_delete = group
+
+    if group_to_delete is None:
+        logger.warning(f"Group {group_id} is not a valid group")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    if group_to_delete[0] in system_dependant_usergroups.values():
+        logger.warning(f"Cannot delete system dependant group {group_to_delete[1]}")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    users_to_reassign = []
+    for user in all_users:
+        if user[2] == group_id:
+            users_to_reassign.append(user)
+
+    logger.warning(
+        f"Usergroup {group_to_delete[1]} is being deleted {len(users_to_reassign)} user(s) are being reassigned to group default")
+    for user in users_to_reassign:
+        dbHandler.set_user_usergroup(user[0], system_dependant_usergroups["default"])
+        logger.info(f"User {user[1]} has been assigned to group default")
+
+    dbHandler.delete_usergroup(group_to_delete[0])
+    logger.info(f"Group {group_to_delete[1]} deleted!")
+
+    return redirect(
+        url_for("user_groups")
+    )
+
+
+@app.route("/updateGroup", methods=['POST', 'GET'])
+@login_required
+@permission_required(["UPDATE_USERGROUPS"], "user_groups")
+def update_existing_group(user_id, user_permission_group, username):
+    permission_tuple = namedtuple("Permission", ["permission_selection_field", "permission_value"])
+    try:
+        group_id = int(request.args.get("g"))
+    except ValueError:
+        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('user_groups')}"}
+    group_to_update = permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config,
+                                                                                              dbHandler.get_usergroup_by_id(
+                                                                                                  group_id))
+
+    data = {
+        "permissions": []
+    }
+
+    if group_id == system_dependant_usergroups["supergroup"]:
+        logger.warning("Cannot change permissions on supergroup!")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    if group_to_update.is_administrator():
+        data["permissions"].append(permission_tuple("ADMIN", "True"))
+    else:
+        for category in group_to_update.PERMISSION_CATEGORIES:
+            has_whole_category = True
+            for value in group_to_update.PERMISSIONS[category].values():
+                if value is False:
+                    has_whole_category = False
+            if has_whole_category:
+                data["permissions"].append(permission_tuple(category, str(has_whole_category)))
+            else:
+                for permission, value in group_to_update.PERMISSIONS[category].items():
+                    if value:
+                        data["permissions"].append(permission_tuple(permission, str(value)))
+
+    update_usergroup_form = UpdateUserGroupForm(data=data)
+
+    if update_usergroup_form.validate_on_submit():
+        if update_usergroup_form.additional_permission_button.data:
+            update_usergroup_form.permissions.append_entry()
+            return make_response(
+                render_template(
+                    "update-usergroup.html",
+                    form=update_usergroup_form,
+                    username=username,
+                    group_title=group_to_update.GROUP_TITLE,
+                    message="Please fill required data"
+                )
+            )
+        else:
+            permission_list = {}
+            new_permissions = []
+            for i, field in enumerate(update_usergroup_form.permissions.data):
+                if field["remove_permission"]:
+                    del update_usergroup_form.permissions.entries[i]
+                    update_usergroup_form.permissions.last_index -= 1
+                    return make_response(
+                        render_template(
+                            "update-usergroup.html",
+                            form=update_usergroup_form,
+                            username=username,
+                            group_title=group_to_update.GROUP_TITLE,
+                            message="Please fill required data"
+                        )
+                    )
+                if field["permission_selection_field"] == "NOTSET":
+                    return make_response(
+                        render_template(
+                            "update-usergroup.html",
+                            form=update_usergroup_form,
+                            username=username,
+                            group_title=group_to_update.GROUP_TITLE,
+                            message="Please ensure all permissions are selected"
+                        )
+                    )
+                permission_value = True if field["permission_value"] == "True" else False
+                permission_list[field["permission_selection_field"]] = permission_value
+                new_permissions.append(permission_tuple(
+                    field["permission_selection_field"],
+                    True if field["permission_value"] == "True" else False
+                ))
+
+            for old_permission_tuple in data["permissions"]:
+                found_permission = False
+                for new_permission_tuple in new_permissions:
+                    if new_permission_tuple.permission_selection_field == old_permission_tuple.permission_selection_field:
+                        found_permission = True
+                if not found_permission:
+                    permission_list[old_permission_tuple.permission_selection_field] = False
+
+            group_to_update.update_permissions(permission_list)
+            dbHandler.update_usergroup(group_to_update)
+
+            return make_response(
+                render_template(
+                    "update-usergroup.html",
+                    form=update_usergroup_form,
+                    username=username,
+                    group_title=group_to_update.GROUP_TITLE,
+                    message="Group updated, Redirecting..."
+                )
+            ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    else:
+        return make_response(
+            render_template(
+                "update-usergroup.html",
+                form=update_usergroup_form,
+                username=username,
+                group_title=group_to_update.GROUP_TITLE,
+                message="Please fill required data"
+            )
+        )
+
+
+@app.route("/createGroup", methods=['POST', 'GET'])
+@login_required
+@permission_required(["CREATE_USERGROUPS"], "user_groups")
 def new_user_group(user_id, user_permission_group, username):
-    return "Hello world"
+    create_group_form = CreateUserGroupForm()
+    all_existing_groups = dbHandler.get_all_user_groups()
+
+    if create_group_form.validate_on_submit():
+        if create_group_form.additional_permission_button.data:
+            create_group_form.permissions.append_entry()
+            return make_response(
+                render_template(
+                    "create-usergroup.html",
+                    form=create_group_form,
+                    username=username,
+                    message="Please fill required data"
+                )
+            )
+        else:
+            for group in all_existing_groups:
+                if create_group_form.title.data == group[1]:
+                    return make_response(
+                        render_template(
+                            "create-usergroup.html",
+                            form=create_group_form,
+                            username=username,
+                            message="Group Name cannot be the same as another existing group"
+                        )
+                    )
+
+            created_group = PermissionGroupObject(config, create_group_form.title.data)
+            permission_list = {}
+            for i, field in enumerate(create_group_form.permissions.data):
+                if field["remove_permission"]:
+                    del create_group_form.permissions.entries[i]
+                    create_group_form.permissions.last_index -= 1
+                    return make_response(
+                        render_template(
+                            "create-usergroup.html",
+                            form=create_group_form,
+                            username=username,
+                            message="Please fill required data"
+                        )
+                    )
+                if field["permission_selection_field"] == "NOTSET":
+                    return make_response(
+                        render_template(
+                            "create-usergroup.html",
+                            form=create_group_form,
+                            username=username,
+                            message="Please ensure all permissions are selected"
+                        )
+                    )
+                permission_value = True if field["permission_value"] == "True" else False
+                permission_list[field["permission_selection_field"]] = permission_value
+
+            created_group.update_permissions(permission_list)
+            dbHandler.create_usergroup(created_group)
+
+            return make_response(
+                render_template(
+                    "create-usergroup.html",
+                    form=create_group_form,
+                    username=username,
+                    message="Group created, Redirecting..."
+                )
+            ), {"Refresh": f"3; url={url_for('user_groups')}"}
+
+    else:
+        return make_response(
+            render_template(
+                "create-usergroup.html",
+                form=create_group_form,
+                username=username,
+                message="Please fill required data"
+            )
+        )
 
 
 @app.route("/users", methods=['POST', 'GET'])
 @login_required
+@permission_required(["READ_USERS"], "index")
 def users(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
-
-    # create_user_group_button_disabled = "disabled"
-    # if user_permission_group.has_permission("CREATE_CODES"):
-    #     create_user_group_button_disabled = ""
-    #
-    # create_group_button = [
-    #     render_template("elements/function-button.html",
-    #                     href=url_for("new_user_group"),
-    #                     title="Create New UserGroup",
-    #                     disabled=create_user_group_button_disabled
-    #                     )
-    # ]
+    all_users = dbHandler.get_all_users()
 
     response = make_response(render_template("main.html",
                                              items_list="Hello World",
@@ -510,10 +845,22 @@ def users(user_id, user_permission_group, username):
                                              username=username))
     return response
 
+
+@app.route("/noPermittedPage")
+@login_required
+def no_permitted_page(user_id, user_permission_group, username):
+    return make_response(
+        render_template(
+            "permission-failed.html",
+            username=username
+        )
+    )
+
+
 @app.route("/logout")
-def logout():
-    userID = session_handler.check_session_token()
-    session_handler.delete_session(userID)
+@login_required
+def logout(user_id, user_permission_group, username):
+    session_handler.delete_session(user_id)
 
     response = make_response(redirect(url_for("login")))
     response.set_cookie("session_token", "", expires=0)
@@ -572,6 +919,7 @@ def get_pretty_ticket_state(state: str):
     if state == "done":
         return "Complete", "text-bg-success"
 
+
 def get_pretty_invite_code_state(revoked: bool, used_by: str = None):
     if used_by is None:
         if revoked:
@@ -612,6 +960,7 @@ def get_logger_level_from_config():
         case 5:
             return logging.CRITICAL
 
+
 ####
 # Error Code Fallbacks
 ####
@@ -624,15 +973,16 @@ def no_token(*args):
     return response
 
 
-@app.errorhandler(403)
-def permission_failure(code, allowed_page):
-    return redirect(allowed_page)
-
-
-@app.errorhandler(409)
-def no_visible_page(code, username):
-    response = make_response(render_template("permission-failed.html", username=username))
-    return response, {"Refresh": f"3; url={url_for('index')}"}
+#
+# @app.errorhandler(403)
+# def permission_failure(code, allowed_page):
+#     return redirect(allowed_page)
+#
+#
+# @app.errorhandler(409)
+# def no_visible_page(code, username):
+#     response = make_response(render_template("permission-failed.html", username=username))
+#     return response, {"Refresh": f"3; url={url_for('index')}"}
 
 
 ####
@@ -695,4 +1045,9 @@ if __name__ == '__main__':
     session_handler = SessionHandler(config)
 
     with DatabaseHandler(config) as dbHandler:
+        system_dependant_usergroups["supergroup"] = dbHandler.get_usergroup_id_by_name(config.get("system_groups", "supergroup_name"))
+        system_dependant_usergroups["default"] = dbHandler.get_usergroup_id_by_name(config.get("system_groups", "default_name"))
+
+        system_dependant_users["superuser"] = dbHandler.get_user_id_by_name(config.get("superuser", "username"))
+
         app.run(debug=debug_mode, use_reloader=use_reloader, host=host_address, port=port)
