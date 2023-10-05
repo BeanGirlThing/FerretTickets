@@ -9,7 +9,7 @@ Before running the application for production or development please read through
 **The default username and password for the superuser are public, please change them before exposing the application externally**
 
 ### Production
-Production deployment of the app is configured to work using a docker image. shell scripts have been provided to automatically build and spin up the image in a container, please ensure you have [docker](https://www.docker.com/) installed before proceeding
+Production deployment of the app is configured to work using a docker image. shell scripts have been provided to automatically build and deploy the image in a container, please ensure you have [docker](https://www.docker.com/) installed before proceeding
 
 **Please ensure you have changed the default username and password for the Superuser before exposing the application externally**
 
