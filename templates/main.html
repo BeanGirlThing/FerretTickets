@@ -9,14 +9,14 @@
 {% block content %}
     <div class="container-fluid">
         <div class="container-sm" style="width: 20%; height: auto; float: left;">
-            <div class="d-grid gap-2">
-                {% for function_button in function_buttons_list %}
-                    {{ function_button | safe }}
-                {% endfor %}
-            </div>
             <div class="list-group">
                 {% for table in table_list %}
                     {{ table | safe }}
+                {% endfor %}
+            </div>
+            <div class="d-grid gap-2">
+                {% for function_button in function_buttons_list %}
+                    {{ function_button | safe }}
                 {% endfor %}
             </div>
         </div>

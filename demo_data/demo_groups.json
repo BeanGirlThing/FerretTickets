@@ -1,0 +1,8 @@
+{
+  "groups": [
+    {
+      "name": "test_group",
+      "permissions": "TICKETS,READ_CODES,"
+    }
+  ]
+}

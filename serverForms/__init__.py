@@ -68,3 +68,7 @@ class UpdateUserGroupForm(FlaskForm):
     permissions = FieldList(FormField(UserGroupPermissionSelection, 'Permission'), "Selected Permissions:", min_entries=1, max_entries=50)
     additional_permission_button = SubmitField("Add Permission")
     create_group_submit = SubmitField("Update Group")
+
+class UpdateUserForm(FlaskForm):
+    user_group = SelectField("Select Permission Group", choices=[], coerce=int)
+    update_user_submit = SubmitField("Update User")

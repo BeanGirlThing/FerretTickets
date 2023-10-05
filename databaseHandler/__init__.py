@@ -248,6 +248,13 @@ class DatabaseHandler(object):
         self.execute_query(delete_group_query.get_sql())
         self.commit_to_database()
 
+    def delete_user(self, user_id:int):
+        delete_user_query = SQLLiteQuery.from_(self.usersTable) \
+            .where(self.usersTable.ID == user_id) \
+            .delete()
+        self.execute_query(delete_user_query.get_sql())
+        self.commit_to_database()
+
     def get_all_user_groups(self):
         get_usergroups_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("ID", "group_title", "permissions")

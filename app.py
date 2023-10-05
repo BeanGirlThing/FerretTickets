@@ -18,7 +18,7 @@ from databaseHandler import DatabaseHandler
 from passwordHandler import PasswordHandler
 from permissionsHandler import PermissionGroupObject
 from serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm, CreateUserGroupForm, \
-    UpdateUserGroupForm
+    UpdateUserGroupForm, UpdateUserForm
 from sessionHandler import SessionHandler
 
 ####
@@ -838,12 +838,124 @@ def users(user_id, user_permission_group, username):
     table_list = generate_table_list(user_permission_group)
     all_users = dbHandler.get_all_users()
 
+    users_accordions = []
+    for user in all_users:
+        user_group_for_account = permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, dbHandler.get_usergroup_by_id(user[2]))
+        users_accordions.append(
+            render_template(
+                "elements/user-accordion.html",
+                user_id=user[0],
+                username=user[1],
+                usergroup_name=user_group_for_account.GROUP_TITLE,
+                update_user_tooltip=f"Cannot update user data for system dependant user {user[1]}" if user[0] == system_dependant_users["superuser"] else "",
+                update_disabled="disabled" if user[0] == system_dependant_users["superuser"] or not user_permission_group.has_permission("UPDATE_USERS") else "",
+                update_user_page=url_for("update_user_account", u=user[0]),
+                delete_user_tooltip=f"Cannot delete system dependant user {user[1]}" if user[0] == system_dependant_users["superuser"] else "",
+                delete_disabled="disabled" if user[0] == system_dependant_users["superuser"] or not user_permission_group.has_permission("DELETE_USERS") else "",
+                delete_user_page=url_for("delete_user_account", u=user[0]),
+                administrator_badge_visibility="" if user_group_for_account.is_administrator() else "invisible"
+            )
+        )
+
+
     response = make_response(render_template("main.html",
-                                             items_list="Hello World",
+                                             items_list=users_accordions,
                                              table_list=table_list,
                                              function_buttons_list=[],
                                              username=username))
     return response
+
+
+@app.route("/updateUser", methods=["POST", "GET"])
+@login_required
+@permission_required(["UPDATE_USERS"], "users")
+def update_user_account(user_id, user_permission_group, username):
+    all_groups = dbHandler.get_all_user_groups()
+    update_user_form = UpdateUserForm()
+    try:
+        user_to_update_id = int(request.args.get("u"))
+    except ValueError:
+        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('users')}"}
+
+    if user_to_update_id == system_dependant_users["superuser"]:
+        logger.warning("Cannot delete system dependant usergroup!")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('users')}"}
+
+    user_to_update_data = dbHandler.get_user_from_ID(user_to_update_id)
+
+    user_group_selection = []
+    for group in all_groups:
+        if group[0] == user_to_update_data[4]:
+            user_group_selection.insert(0, (group[0], group[1]))
+        else:
+            user_group_selection.append((group[0], group[1]))
+
+    update_user_form.user_group.choices = user_group_selection
+
+    if update_user_form.validate_on_submit():
+        user_new_user_group = update_user_form.user_group.data
+        dbHandler.set_user_usergroup(user_to_update_id, user_new_user_group)
+        return make_response(
+            render_template(
+                "update-user.html",
+                form=update_user_form,
+                username=username,
+                user_to_update_username=user_to_update_data[1],
+                message="User updated, Redirecting..."
+            )
+        ), {"Refresh": f"3; url={url_for('users')}"}
+
+    return make_response(
+        render_template(
+            "update-user.html",
+            form=update_user_form,
+            username=username,
+            user_to_update_username=user_to_update_data[1],
+            message=""
+        )
+    ), {"Refresh": f"3; url={url_for('users')}"}
+
+
+
+@app.route("/deleteUser", methods=["POST", "GET"])
+@login_required
+@permission_required(["DELETE_USERS"], "users")
+def delete_user_account(user_id, user_permission_group, username):
+    try:
+        user_to_delete_id = int(request.args.get("u"))
+    except ValueError:
+        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('users')}"}
+
+    if user_to_delete_id == system_dependant_users["superuser"]:
+        logger.warning("Cannot delete system dependant usergroup!")
+        return make_response(
+            render_template(
+                "invalid-operation.html",
+                username=username
+            )
+        ), {"Refresh": f"3; url={url_for('users')}"}
+
+    dbHandler.delete_user(user_to_delete_id)
+    logger.warning(f"User {user_to_delete_id} deleted!")
+
+    return redirect("users")
 
 
 @app.route("/noPermittedPage")
