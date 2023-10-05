@@ -13,15 +13,18 @@ Production deployment of the app is configured to work using a docker image. she
 
 **Please ensure you have changed the default username and password for the Superuser before exposing the application externally**
 
-To build the image please run
+First, provide the build and run scripts execution permission by running
 ```shell
-sudo chmod 775 build-image.sh
+sudo chmod 775 build-image.sh start-production.sh
+```
+
+Then to build the image please run
+```shell
 ./build-image.sh
 ```
 
 once built you can deploy the container with
 ```shell
-sudo chmod 775 start-production.sh
 ./start-production.sh
 ```
 
