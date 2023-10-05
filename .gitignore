@@ -1,4 +1,4 @@
-logs
+app/logs
 __pycache__
 .idea
-database
+app/database

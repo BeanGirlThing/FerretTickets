@@ -5,7 +5,6 @@ from configparser import ConfigParser
 import json
 from pypika import Table, SQLLiteQuery
 
-import permissionsHandler
 from passwordHandler import PasswordHandler
 from permissionsHandler import PermissionGroupObject, PermissionsParser
 from inviteCodeHandler import InviteCodes
@@ -40,6 +39,7 @@ class DatabaseHandler(object):
 
     # Dict object containing lists of stored static queries in the ./staticQueries folder, derived from ./staticQueries/index.json
     staticQueriesJsonFile = None
+
 
     def __init__(self, config: ConfigParser):
         self.config = config
@@ -81,6 +81,38 @@ class DatabaseHandler(object):
             self.logger.critical("JSON Failed to parse Static Query index.json", exc_info=True)
             raise e
         self.logger.info("Successfully set up DatabaseHandler")
+
+    def no_resource_manager_entry(self):
+        self.logger.warning("No resource manager (python `with`) used to run DatabaseHandler, ensure it is closed before exiting")
+        self.logger.info(f"Connecting to the database at {self.databasePath}")
+        try:
+            self.connection = sqlite3.connect(self.databasePath, check_same_thread=False)
+        except sqlite3.Error as e:
+            self.logger.critical(f"Database connection failed with {e}", exc_info=True)
+            raise e
+        self.logger.info(f"Successfully opened database connection to {self.databasePath}")
+        self.cursor = self.connection.cursor()
+
+        self.userGroupsTable = Table("usergroups")
+        self.usersTable = Table("users")
+        self.ticketsTable = Table("tickets")
+        self.inviteCodesTable = Table("inviteCodes")
+
+        if self.newDatabase:
+            self.logger.info("Database detected as new, setting up")
+            self.setup_new_database()
+            self.commit_to_database()
+            self.logger.info("New Database setup complete")
+        else:
+            self.logger.info("Database already exists, skipping table setup")
+            self.set_superuser_consts()
+
+        return self
+
+    def no_resource_manager_exit(self):
+        self.logger.info(f"Closing database connection to {self.databasePath}...")
+        self.connection.close()
+        self.logger.info("Database connection closed")
 
     def __enter__(self):
         self.logger.info(f"Connecting to the database at {self.databasePath}")
@@ -199,7 +231,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def create_demo_tickets(self):
-        with open("demo_tickets.json", "r") as f:
+        with open("demo_data/demo_tickets.json", "r") as f:
             demo_tickets = json.loads(f.read())
 
         for ticket in demo_tickets["tickets"]:

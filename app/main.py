@@ -1,3 +1,4 @@
+import atexit
 import configparser
 import datetime
 import logging
@@ -548,11 +549,16 @@ def user_groups(user_id, user_permission_group, username):
                                                    update_usergroup_page=url_for("update_existing_group",
                                                                                  g=group.DATABASE_GROUP_ID),
                                                    update_usergroup_disabled="" if user_permission_group.has_permission(
-                                                       "UPDATE_USERGROUPS") and not group.DATABASE_GROUP_ID == system_dependant_usergroups["supergroup"] else "disabled",
-                                                   update_usergroup_tooltip=f"Cannot change permissions on system dependant group {group.GROUP_TITLE}" if group.DATABASE_GROUP_ID == system_dependant_usergroups["supergroup"] else "",
+                                                       "UPDATE_USERGROUPS") and not group.DATABASE_GROUP_ID ==
+                                                                                    system_dependant_usergroups[
+                                                                                        "supergroup"] else "disabled",
+                                                   update_usergroup_tooltip=f"Cannot change permissions on system dependant group {group.GROUP_TITLE}" if group.DATABASE_GROUP_ID ==
+                                                                                                                                                          system_dependant_usergroups[
+                                                                                                                                                              "supergroup"] else "",
                                                    delete_group_page=url_for("delete_usergroups",
                                                                              g=group.DATABASE_GROUP_ID),
-                                                   delete_disabled="disabled" if group.DATABASE_GROUP_ID in system_dependant_usergroups.values() or not user_permission_group.has_permission("DELETE_USERGROUPS") else "",
+                                                   delete_disabled="disabled" if group.DATABASE_GROUP_ID in system_dependant_usergroups.values() or not user_permission_group.has_permission(
+                                                       "DELETE_USERGROUPS") else "",
                                                    delete_usergroup_tooltip=f"Cannot delete system dependant UserGroup" if group.DATABASE_GROUP_ID in system_dependant_usergroups.values() else ""
                                                    )
                                    )
@@ -840,23 +846,30 @@ def users(user_id, user_permission_group, username):
 
     users_accordions = []
     for user in all_users:
-        user_group_for_account = permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, dbHandler.get_usergroup_by_id(user[2]))
+        user_group_for_account = permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config,
+                                                                                                         dbHandler.get_usergroup_by_id(
+                                                                                                             user[2]))
         users_accordions.append(
             render_template(
                 "elements/user-accordion.html",
                 user_id=user[0],
                 username=user[1],
                 usergroup_name=user_group_for_account.GROUP_TITLE,
-                update_user_tooltip=f"Cannot update user data for system dependant user {user[1]}" if user[0] == system_dependant_users["superuser"] else "",
-                update_disabled="disabled" if user[0] == system_dependant_users["superuser"] or not user_permission_group.has_permission("UPDATE_USERS") else "",
+                update_user_tooltip=f"Cannot update user data for system dependant user {user[1]}" if user[0] ==
+                                                                                                      system_dependant_users[
+                                                                                                          "superuser"] else "",
+                update_disabled="disabled" if user[0] == system_dependant_users[
+                    "superuser"] or not user_permission_group.has_permission("UPDATE_USERS") else "",
                 update_user_page=url_for("update_user_account", u=user[0]),
-                delete_user_tooltip=f"Cannot delete system dependant user {user[1]}" if user[0] == system_dependant_users["superuser"] else "",
-                delete_disabled="disabled" if user[0] == system_dependant_users["superuser"] or not user_permission_group.has_permission("DELETE_USERS") else "",
+                delete_user_tooltip=f"Cannot delete system dependant user {user[1]}" if user[0] ==
+                                                                                        system_dependant_users[
+                                                                                            "superuser"] else "",
+                delete_disabled="disabled" if user[0] == system_dependant_users[
+                    "superuser"] or not user_permission_group.has_permission("DELETE_USERS") else "",
                 delete_user_page=url_for("delete_user_account", u=user[0]),
                 administrator_badge_visibility="" if user_group_for_account.is_administrator() else "invisible"
             )
         )
-
 
     response = make_response(render_template("main.html",
                                              items_list=users_accordions,
@@ -925,7 +938,6 @@ def update_user_account(user_id, user_permission_group, username):
             message=""
         )
     ), {"Refresh": f"3; url={url_for('users')}"}
-
 
 
 @app.route("/deleteUser", methods=["POST", "GET"])
@@ -1100,66 +1112,86 @@ def no_token(*args):
 ####
 # Application Entrypoint
 ####
+config.read("config.ini")
+
+logger = logging.getLogger(config.get("logger", "logger_name"))
+logger.setLevel(get_logger_level_from_config())
+
+loggingFileHandler = logging.FileHandler(get_logfile_absolute_path())
+loggingFileHandler.setLevel(get_logger_level_from_config())
+
+loggingStreamHandler = logging.StreamHandler(sys.stdout)
+loggingStreamHandler.setLevel(get_logger_level_from_config())
+
+loggingFormatter = logging.Formatter(
+    fmt='[%(asctime)s][%(levelname)s][%(name)s] - %(message)s',
+    datefmt='%d-%b-%y %H:%M:%S'
+)
+loggingFileHandler.setFormatter(loggingFormatter)
+loggingStreamHandler.setFormatter(loggingFormatter)
+
+logger.addHandler(loggingFileHandler)
+logger.addHandler(loggingStreamHandler)
+
+logger.info("Starting up!")
+
+host_address = config.get("development_webserver", "host_address")
+try:
+    IP(host_address)
+except ValueError:
+    logger.warning("Config host_address is not a valid IP address, defaulting to 0.0.0.0")
+    host_address = "0.0.0.0"
+
+port = config.get("development_webserver", "port")
+try:
+    port = int(port)
+    if port > 65535 or port <= 0:
+        logger.warning("Config port is not within valid port range, defaulting to 5000")
+        port = 5000
+except ValueError:
+    logger.warning("Config port is not a valid integer, defaulting to 5000")
+    port = 5000
+
+try:
+    debug_mode = config.getboolean("development_webserver", "debug_mode")
+except ValueError:
+    logger.warning("Config debug_mode is not valid boolean, defaulting to True")
+    debug_mode = True
+
+try:
+    use_reloader = config.getboolean("development_webserver", "use_reloader")
+except ValueError:
+    logger.warning("Config use_reloader is not valid boolean, defaulting to True")
+    use_reloader = True
+
+session_handler = SessionHandler(config)
+
+# Cleanup function for docker production environment, registered by atexit to ensure it runs when interpreter shuts down
+def production_exit_cleanup():
+    dbHandler.no_resource_manager_exit()
+    logger.info("Successfully shutdown with cleanup!")
 
 if __name__ == '__main__':
-    config.read("config.ini")
-
-    logger = logging.getLogger(config.get("logger", "logger_name"))
-    logger.setLevel(get_logger_level_from_config())
-
-    loggingFileHandler = logging.FileHandler(get_logfile_absolute_path())
-    loggingFileHandler.setLevel(get_logger_level_from_config())
-
-    loggingStreamHandler = logging.StreamHandler(sys.stdout)
-    loggingStreamHandler.setLevel(get_logger_level_from_config())
-
-    loggingFormatter = logging.Formatter(
-        fmt='[%(asctime)s][%(levelname)s][%(name)s] - %(message)s',
-        datefmt='%d-%b-%y %H:%M:%S'
-    )
-    loggingFileHandler.setFormatter(loggingFormatter)
-    loggingStreamHandler.setFormatter(loggingFormatter)
-
-    logger.addHandler(loggingFileHandler)
-    logger.addHandler(loggingStreamHandler)
-
-    logger.info("Starting up!")
-
-    host_address = config.get("webserver", "host_address")
-    try:
-        IP(host_address)
-    except ValueError:
-        logger.warning("Config host_address is not a valid IP address, defaulting to 0.0.0.0")
-        host_address = "0.0.0.0"
-
-    port = config.get("webserver", "port")
-    try:
-        port = int(port)
-        if port > 65535 or port <= 0:
-            logger.warning("Config port is not within valid port range, defaulting to 5000")
-            port = 5000
-    except ValueError:
-        logger.warning("Config port is not a valid integer, defaulting to 5000")
-        port = 5000
-
-    try:
-        debug_mode = config.getboolean("webserver", "debug_mode")
-    except ValueError:
-        logger.warning("Config debug_mode is not valid boolean, defaulting to True")
-        debug_mode = True
-
-    try:
-        use_reloader = config.getboolean("webserver", "use_reloader")
-    except ValueError:
-        logger.warning("Config use_reloader is not valid boolean, defaulting to True")
-        use_reloader = True
-
-    session_handler = SessionHandler(config)
-
+    # Only used for development operation, docker production image will import the app instead
     with DatabaseHandler(config) as dbHandler:
-        system_dependant_usergroups["supergroup"] = dbHandler.get_usergroup_id_by_name(config.get("system_groups", "supergroup_name"))
-        system_dependant_usergroups["default"] = dbHandler.get_usergroup_id_by_name(config.get("system_groups", "default_name"))
+        system_dependant_usergroups["supergroup"] = dbHandler.get_usergroup_id_by_name(
+            config.get("system_groups", "supergroup_name"))
+        system_dependant_usergroups["default"] = dbHandler.get_usergroup_id_by_name(
+            config.get("system_groups", "default_name"))
 
         system_dependant_users["superuser"] = dbHandler.get_user_id_by_name(config.get("superuser", "username"))
 
         app.run(debug=debug_mode, use_reloader=use_reloader, host=host_address, port=port)
+else:
+    dbHandler = DatabaseHandler(config)
+    dbHandler.no_resource_manager_entry()
+
+    system_dependant_usergroups["supergroup"] = dbHandler.get_usergroup_id_by_name(
+        config.get("system_groups", "supergroup_name"))
+    system_dependant_usergroups["default"] = dbHandler.get_usergroup_id_by_name(
+        config.get("system_groups", "default_name"))
+
+    system_dependant_users["superuser"] = dbHandler.get_user_id_by_name(config.get("superuser", "username"))
+
+    # Register cleanup function
+    atexit.register(production_exit_cleanup)

@@ -13,7 +13,7 @@ pip install -r requirements.txt
 Once complete, the app can be run with
 
 ```shell
-python3.11 app.py
+python3.11 main.py
 ```
 
 The default login credentials for Administrator (Superuser) are
