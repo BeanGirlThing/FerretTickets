@@ -1,0 +1,54 @@
+{
+  "users": [
+    {
+      "username": "Jon Doe",
+      "password": "w38M?5fXa$]",
+      "usergroup": "default"
+    },
+    {
+      "username": "Jane Smith",
+      "password": "w38M?5fXa$]",
+      "usergroup": "Developer"
+    },
+    {
+      "username": "AnExampleUser",
+      "password": "w38M?5fXa$]",
+      "usergroup": "DevTester"
+    },
+    {
+      "username": "AnotherExampleUser",
+      "password": "w38M?5fXa$]",
+      "usergroup": "Manager"
+    },
+    {
+      "username": "William Black",
+      "password": "w38M?5fXa$]",
+      "usergroup": "SysAdmin"
+    },
+    {
+      "username": "Frankie Shimmer",
+      "password": "w38M?5fXa$]",
+      "usergroup": "VP"
+    },
+    {
+      "username": "Jacob Grey",
+      "password": "w38M?5fXa$]",
+      "usergroup": "Intern"
+    },
+    {
+      "username": "Nick Name",
+      "password": "w38M?5fXa$]",
+      "usergroup": "supergroup"
+    },
+    {
+      "username": "Thinking of names for",
+      "password": "w38M?5fXa$]",
+      "usergroup": "Developer"
+    },
+    {
+      "username": "demo data is hard",
+      "password": "w38M?5fXa$]",
+      "usergroup": "Developer"
+    }
+  ]
+}

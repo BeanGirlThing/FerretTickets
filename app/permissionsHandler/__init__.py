@@ -3,11 +3,6 @@ import logging
 from configparser import ConfigParser
 
 
-class InvalidPermissionException(Exception):
-    """Raised when an invalid permission value is provided to permission handler"""
-    pass
-
-
 class PermissionGroupObject(object):
     GROUP_TITLE = None
     DATABASE_GROUP_ID = None

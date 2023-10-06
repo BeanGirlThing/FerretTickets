@@ -309,7 +309,11 @@ def index(user_id, user_permission_group, username):
 
     for ticket in all_tickets:
         pretty_ticket_state, ticket_state_background_colour = get_pretty_ticket_state(ticket[4])
-        ticket_creator = dbHandler.get_username_from_id(ticket[1])[0]
+        try:
+            ticket_creator = dbHandler.get_username_from_id(ticket[1])[0]
+        except TypeError:
+            ticket_creator = "Deleted User"
+
         display_list.append(render_template("elements/ticket-accordion.html",
                                             ticket_id=ticket[0],
                                             ticket_title=ticket[2],
@@ -362,7 +366,11 @@ def ticket_details(user_id, user_permission_group, username):
         else:
             status_disabled = "disabled"
 
-    ticket_creator = dbHandler.get_username_from_id(ticket[1])[0]
+    try:
+        ticket_creator = dbHandler.get_username_from_id(ticket[1])[0]
+    except ValueError:
+        ticket_creator = "Deleted User"
+
     pretty_ticket_name, ticket_badge_background_colour = get_pretty_ticket_state(ticket[4])
 
     if query_parameters.get("deleteticket"):
@@ -497,7 +505,12 @@ def invite_codes(user_id, user_permission_group, username):
     for code in invite_codes:
         specific_code_revoke_button = revoke_disabled
         badge_text, badge_background = get_pretty_invite_code_state(bool(code[3]), code[4])
-        creator_username = dbHandler.get_username_from_id(code[2])[0]
+
+        try:
+            creator_username = dbHandler.get_username_from_id(code[2])[0]
+        except ValueError:
+            creator_username = "Deleted User"
+
         is_active = dbHandler.check_invite_code(code_id=int(code[0]))
         if not is_active:
             specific_code_revoke_button = "disabled"

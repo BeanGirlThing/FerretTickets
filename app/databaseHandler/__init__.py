@@ -210,7 +210,10 @@ class DatabaseHandler(object):
             self.create_invite_code(self.SUPERUSER_USER_ID)
 
         if self.config.getboolean("demo_mode", "create_demo_data"):
+            self.create_demo_usergroups()
+            self.create_demo_users()
             self.create_demo_tickets()
+
 
     def create_usergroup(self, group: PermissionGroupObject):
         group_creation_query = SQLLiteQuery.into(self.userGroupsTable) \
@@ -241,6 +244,25 @@ class DatabaseHandler(object):
                 ticket["description"],
                 ticket["state"]
             )
+
+    def create_demo_usergroups(self):
+        with open("demo_data/demo_groups.json", "r") as f:
+            demo_groups = json.loads(f.read())
+
+        for group in demo_groups["groups"]:
+            self.create_usergroup(PermissionGroupObject(self.config, group["name"], group["permissions"]))
+
+    def create_demo_users(self):
+        with open("demo_data/demo_users.json", "r") as f:
+            demo_users = json.loads(f.read())
+
+        for user in demo_users["users"]:
+            password_hash, salt = PasswordHandler.hash_password(user["password"], PasswordHandler.gensalt())
+            self.register_new_user(user["username"], password_hash, salt)
+            user_id = self.get_user_id_by_name(user["username"])
+            group_id = self.get_usergroup_id_by_name(user["usergroup"])
+            self.set_user_usergroup(user_id, group_id)
+
 
     def create_ticket(self, creator: int, title: str, description: str, state: str):
         create_ticket_query = SQLLiteQuery.into(self.ticketsTable) \

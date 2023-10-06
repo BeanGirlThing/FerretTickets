@@ -1,8 +1,44 @@
 {
   "groups": [
     {
-      "name": "test_group",
-      "permissions": "TICKETS,READ_CODES,"
+      "name": "Developer",
+      "permissions": "READ_TICKETS,UPDATE_TICKETS,CREATE_TICKETS,RESOLVE_OWN_TICKETS"
+    },
+    {
+      "name": "DevTester",
+      "permissions": "READ_TICKETS,UPDATE_TICKETS,CREATE_TICKETS,RESOLVE_OWN_TICKETS,RESOLVE_OTHERS_TICKETS"
+    },
+    {
+      "name": "Manager",
+      "permissions": "READ_TICKETS,UPDATE_TICKETS,CREATE_TICKETS,RESOLVE_OWN_TICKETS,RESOLVE_OTHERS_TICKETS,DELETE_TICKETS,INVITECODES,READ_USERS,DELETE_USERS"
+    },
+    {
+      "name": "SysAdmin",
+      "permissions": "ADMIN"
+    },
+    {
+      "name": "VP",
+      "permissions": "TICKETS,USERACCOUNTS"
+    },
+    {
+      "name": "Intern",
+      "permissions": "READ_TICKETS"
+    },
+    {
+      "name": "Example Group 1",
+      "permissions": "USERGROUPS,TICKETS"
+    },
+    {
+      "name": "Example Group 2",
+      "permissions": "INVITECODES,USERACCOUNTS,READ_TICKETS"
+    },
+    {
+      "name": "Example Group 3",
+      "permissions": "TICKETS,READ_CODES,REVOKE_CODES"
+    },
+    {
+      "name": "Example Group 4",
+      "permissions": "READ_USERS,DELETE_USERS"
     }
   ]
 }
