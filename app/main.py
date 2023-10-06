@@ -391,7 +391,7 @@ def ticket_details(user_id, user_permission_group, username):
 
     try:
         ticket_creator = dbHandler.get_username_from_id(ticket[1])[0]
-    except ValueError:
+    except TypeError:
         ticket_creator = "Deleted User"
 
     pretty_ticket_name, ticket_badge_background_colour = get_pretty_ticket_state(ticket[4])

@@ -1,5 +1,5 @@
-app/logs
+logs
 __pycache__
 .idea
-app/database
+database
 .pyenv/
