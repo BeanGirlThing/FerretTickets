@@ -201,6 +201,10 @@ Settings for invite codes, allows for configuration on how many are created when
 ----
 ### Credits and Thank You's
 
+#### Thank You's
+- [Anoyomouse](https://github.com/Anoyomouse) - For helping me get docker working properly!
+
+#### Credits
 - The Flask Team - Flask - [Flask Website](https://flask.palletsprojects.com/en/3.0.x/)
 - The Django Team - Django - [Django Website](https://www.djangoproject.com/)
 - Jeff Ferland - IPy - [IPy PyPi](https://pypi.org/project/IPy/)
