@@ -199,6 +199,30 @@ Settings for invite codes, allows for configuration on how many are created when
 - `code_prefix` - A prefix added to invite codes when created (Default: `FerretTickets`)
 
 ----
+
+## Validation
+- SQL Is escaped automatically when entered in a field and submitted.
+- Fields have validators applied. 
+- Validators are quiet, but do notify the user when necessary.
+  - If the user presses submit without data filled into the form, it will be refused
+- CSRF Protection is applied to validate that no bad actor has tampered with form requests.
+
+----
+
+## Database
+### Tickets Table
+The tickets table stores the ticket data for tickets that are created by the users of the system. 
+
+### Invite Codes Table/ 
+The invite code table stores active and revoked invite codes, allowing new users to register
+
+### Users Table
+The users table contains user account data for the users on the system
+
+### UserGroups table
+The UserGroups table contains a list of groups and their assigned permissions which can then be assigned to a user
+
+----
 ### Credits and Thank You's
 
 #### Thank You's
