@@ -33,12 +33,8 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
-# app.add_url_rule('/favicon.ico', redirect_to=url_for('static', filename='favicon.ico'))
-# app.add_url_rule('/logo.svg', redirect_to=url_for('static', filename='logo.svg'))
-
 
 bootstrap = Bootstrap5(app)
-csrf = CSRFProtect(app)
 
 dbHandler = None
 config = configparser.ConfigParser()
