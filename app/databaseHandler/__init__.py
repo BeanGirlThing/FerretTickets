@@ -572,7 +572,7 @@ class DatabaseHandler(object):
 
     def return_prettier_table_names(self) -> dict:
         self.logger.debug("Getting pretty table names from file")
-        with open("databaseHandler/staticQueries/index.json", "r") as f:
+        with open(f"{self.modulePath}/staticQueries/index.json", "r") as f:
             index_file = json.loads(f.read())
 
         return index_file["prettierTablenames"]
