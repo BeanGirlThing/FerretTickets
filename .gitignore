@@ -2,3 +2,4 @@ app/logs
 __pycache__
 .idea
 app/database
+.pyenv/

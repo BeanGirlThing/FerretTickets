@@ -23,10 +23,10 @@ COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application
+COPY --chown=10001:10001 --chmod=0744 static/ static/
+COPY --chown=10001:10001 --chmod=0744 templates/ templates/
 COPY --chown=10001:10001 --chmod=0744 app/ app/
-COPY --chown=10001:10001 --chmod=0744 app/config.ini .
-RUN mv app/static .
-RUN mv app/templates .
+COPY --chown=10001:10001 --chmod=0744 config.ini .
 
 # Expose the Docker container for the application to run on port 5000
 EXPOSE 5000
