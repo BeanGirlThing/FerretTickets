@@ -34,6 +34,9 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
+csrf = CSRFProtect(app)
+csrf.init_app()
+
 bootstrap = Bootstrap5(app)
 
 dbHandler = None
