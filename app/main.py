@@ -35,7 +35,6 @@ app.config.update(
 )
 
 csrf = CSRFProtect(app)
-csrf.init_app()
 
 bootstrap = Bootstrap5(app)
 
