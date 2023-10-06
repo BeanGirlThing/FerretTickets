@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-100">
 <head>
     {% block head %}
         <!-- Required meta tags -->
@@ -8,15 +8,19 @@
 
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
         {% block styles %}
             <!-- Bootstrap CSS -->
             {{ bootstrap.load_css() }}
         {% endblock %}
 
-        <title>Your page title</title>
+        <title>FerretTickets</title>
     {% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column h-100">
 
 <script>
     function copyToClipboard(text) {
@@ -28,39 +32,69 @@
 </script>
 
 <!-- Your page content -->
-
-<div class="container-fluid" style="margin-bottom:20px;">
-    <div class="col-md col-lg mx-lg-auto mx-md-auto" style="position: relative;">
-        <nav id="navbar_top" class="navbar navbar-expand-lg bg-light">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/">FerretTickets</a>
-                <div class="collapse navbar-collapse" id="navbarText">
-                    <ul class="navbar-nav">
-                        <li class="nav-item">
-                            <a class="nav-link active" aria-current="page" href="/logout">Logout</a>
+<nav id="navbar_top" class="navbar navbar-expand-lg border-bottom border-dark mb-2">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('index') }}">
+            <img src="{{ url_for('logo') }}" alt="" width="30" height="24"
+                 class="d-inline-block align-text-top">
+            FerretTickets
+        </a>
+        <div class="collapse navbar-collapse" id="navbarText">
+            <ul class="navbar-nav">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        Hello {{ username }}
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li>
+                            <a class="dropdown-item" href="{{ logout_page }}">
+                                Logout
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ change_password_page }}">
+                                Change Password
+                            </a>
                         </li>
                     </ul>
-                    <div class="ms-auto">
-                        <span class="navbar-text" style="float:right;">
-                            Hello {{ username }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </nav>
-        <div class="toast" id="copiedToast" data-bs-delay="1000" style="position: absolute; top: 0; right: 0;">
-            <div class="toast-header">
-                <strong class="me-auto"><i class="bi-gift-fill"></i>Copied to Clipboard!</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
+                </li>
+            </ul>
         </div>
     </div>
+</nav>
+<div class="toast" id="copiedToast" data-bs-delay="1000" style="position: absolute; top: 0; right: 0;">
+    <div class="toast-header">
+        <strong class="me-auto"><i class="bi-gift-fill"></i>Copied to Clipboard!</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
 </div>
+
+
 {% block content %}{% endblock %}
+
 
 {% block scripts %}
     <!-- Optional JavaScript -->
     {{ bootstrap.load_js() }}
 {% endblock %}
+
+<footer class="footer mt-auto py-3 bg-light border-top border-dark ">
+    <div class="row m-1">
+        <div class="col d-flex align-items-center">
+            <span>
+                <i class="bi bi-c-circle"></i>
+                Jessica. A (2023)
+            </span>
+        </div>
+        <div class="col d-flex justify-content-end">
+            <a role="button" class="btn btn-outline-dark float-right" href="https://github.com/BeanGirlThing/FerretTickets"
+               target="_blank">
+                <i class="bi bi-github"></i>
+                FerretTickets GitHub
+            </a>
+        </div>
+    </div>
+</footer>
 </body>
 </html>

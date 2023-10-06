@@ -72,3 +72,9 @@ class UpdateUserGroupForm(FlaskForm):
 class UpdateUserForm(FlaskForm):
     user_group = SelectField("Select Permission Group", choices=[], coerce=int)
     update_user_submit = SubmitField("Update User")
+
+class ChangePasswordForm(FlaskForm):
+    old_password = PasswordField("Current Password", validators=[DataRequired(), Length(3, 100)])
+    new_password = PasswordField("New Password", validators=[DataRequired(), Length(3, 100)])
+    new_password_confirm = PasswordField("Confirm New Password", validators=[DataRequired(), Length(3, 100)])
+    update_password_submit = SubmitField("Change Password")

@@ -8,12 +8,6 @@
 
 {% block content %}
 
-    <!--
-        TIPS about using Bootstrap-Flask:
-        https://github.com/helloflask/bootstrap-flask
-        https://bootstrap-flask.readthedocs.io/
-    -->
-
     <div class="container">
         <div class="row">
             <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
@@ -26,11 +20,10 @@
 
                     {{ form.hidden_tag() }}
 
-                    <div class="container border border-primary rounded" style="padding:10px;">
+                    <div class="container border border-primary rounded p-2">
                     <div class="form-group">
                         {% for permission in form.permissions %}
-                            <div class="container bg-light border border-secondary rounded"
-                                 style="margin-top:10px; margin-bottom:10px; padding:10px">
+                            <div class="container bg-light border border-secondary rounded mt-2 mb-2 p-2">
                                 <div class="row">
                                     <div class="col-md">
                                         {{ wtf.form_field(permission.permission_selection_field) }}
@@ -39,7 +32,7 @@
                                         {{ wtf.form_field(permission.permission_value) }}
                                     </div>
                                 </div>
-                                <div class="row" style="margin-top: 10px">
+                                <div class="row mt-2">
                                     <div class="col-lg d-grid gap-2">
                                         {{ wtf.form_field(permission.remove_permission) }}
                                     </div>

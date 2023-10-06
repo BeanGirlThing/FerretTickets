@@ -1,11 +1,13 @@
 <div class="accordion" id="ticket-list">
-    <div class="accordion-item" style="margin-bottom: 10px;">
+    <div class="accordion-item mb-2">
         <h2 class="accordion-header" id="headingOne">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                     data-bs-target="#collapse{{ ticket_id }}" aria-expanded="false" aria-controls="collapseOne">
-                {{ ticket_title }}
-                <span class="badge text-bg-primary" style="margin-left: 10px">Created By: {{ ticket_creator }}</span>
-                <span class="badge {{ badge_background_colour }}" style="margin-left: 10px">{{ ticket_state }}</span>
+                <span class="text-dark">{{ ticket_title }}</span>
+                <div class="container-flex p-1">
+                    <span class="badge text-bg-primary">Created By: {{ ticket_creator }}</span>
+                    <span class="badge {{ badge_background_colour }}">{{ ticket_state }}</span>
+                </div>
             </button>
         </h2>
         <div id="collapse{{ ticket_id }}" class="accordion-collapse collapse" aria-labelledby="headingOne"
@@ -13,7 +15,7 @@
             <div class="accordion-body">
                 {{ ticket_description }}
                 <hr class="hr"/>
-                <div class="container" style="margin-top:10px">
+                <div class="container mt-2">
                     <div class="row">
                         <div class="col-lg d-grid gap-2">
                             <button onclick="copyToClipboard(window.location.href.concat('ticket?t={{ ticket_id }}'))"
@@ -28,7 +30,8 @@
                             </button>
                         </div>
                         <div class="col-lg d-grid gap-2">
-                            <a role="button" href="/ticket?t={{ ticket_id }}" class="btn btn-primary btn-block btn-sm">More
+                            <a role="button" href="{{ url_for('ticket_details', t=ticket_id) }}"
+                               class="btn btn-primary btn-block btn-sm">More
                                 Details</a>
                         </div>
                     </div>

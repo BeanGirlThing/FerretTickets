@@ -430,6 +430,20 @@ class DatabaseHandler(object):
         self.execute_query(update_invite_code.get_sql())
         self.commit_to_database()
 
+    def update_user_password(self, user_id: str, password_hash: str, salt: str):
+        update_password_query = SQLLiteQuery.update(self.usersTable) \
+            .set(self.usersTable.password, password_hash) \
+            .where(self.usersTable.ID == user_id)
+
+        update_salt_query = SQLLiteQuery.update(self.usersTable) \
+            .set(self.usersTable.salt, salt) \
+            .where(self.usersTable.ID == user_id)
+
+        self.execute_query(update_password_query.get_sql())
+        self.execute_query(update_salt_query.get_sql())
+
+        self.commit_to_database()
+
     def register_new_user(self, username: str, password_hash: str, salt: str):
         usergroup = self.get_usergroup_id_by_name("default")
         new_user_creation_query = SQLLiteQuery.into(self.usersTable) \

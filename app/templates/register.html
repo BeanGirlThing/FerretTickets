@@ -8,12 +8,6 @@
 
 {% block content %}
 
-    <!--
-        TIPS about using Bootstrap-Flask:
-        https://github.com/helloflask/bootstrap-flask
-        https://bootstrap-flask.readthedocs.io/
-    -->
-
     <div class="container">
         <div class="row">
             <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
@@ -21,7 +15,7 @@
                 <h1 class="pt-5 pb-2">FerretTickets</h1>
 
                 <p class="lead">Register</p>
-                <p class="small">Already have an account? Please <a href="/login">Login</a></p>
+                <p class="small">Already have an account? Please <a href="{{ url_for('login') }}">Login</a></p>
 
 
                 {{ render_form(form) }}

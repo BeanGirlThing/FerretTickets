@@ -194,6 +194,7 @@ Settings for invite codes, allows for configuration on how many are created when
 
 ----
 ### Credits and Thank You's
+
 - The Flask Team - Flask - [Flask Website](https://flask.palletsprojects.com/en/3.0.x/)
 - The Django Team - Django - [Django Website](https://www.djangoproject.com/)
 - Jeff Ferland - IPy - [IPy PyPi](https://pypi.org/project/IPy/)
@@ -203,3 +204,6 @@ Settings for invite codes, allows for configuration on how many are created when
 - The Bootstrap-Flask Team - Bootstrap-Flask - [Bootstrap-Flask PyPi](https://pypi.org/project/Bootstrap-Flask/)
 - Docker Inc - Docker - [Docker Website](https://www.docker.com/)
 - Tiangolo - uwsgi-nginx-flask Docker Image - [uwsgi-nginx-flask Dockerhub](https://hub.docker.com/r/tiangolo/uwsgi-nginx-flask)
+
+#### Attributions
+- [Ferret icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/ferret)

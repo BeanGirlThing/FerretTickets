@@ -10,7 +10,7 @@ from collections import namedtuple
 
 from IPy import IP
 from django.utils.text import slugify
-from flask import Flask, redirect, make_response, render_template, request, abort, url_for, flash
+from flask import Flask, redirect, make_response, render_template, request, abort, url_for, flash, send_from_directory
 from flask_bootstrap import Bootstrap5
 from flask_wtf import CSRFProtect
 
@@ -19,7 +19,7 @@ from databaseHandler import DatabaseHandler
 from passwordHandler import PasswordHandler
 from permissionsHandler import PermissionGroupObject
 from serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm, CreateUserGroupForm, \
-    UpdateUserGroupForm, UpdateUserForm
+    UpdateUserGroupForm, UpdateUserForm, ChangePasswordForm
 from sessionHandler import SessionHandler
 
 ####
@@ -33,6 +33,9 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
+# app.add_url_rule('/favicon.ico', redirect_to=url_for('static', filename='favicon.ico'))
+# app.add_url_rule('/logo.svg', redirect_to=url_for('static', filename='logo.svg'))
+
 
 bootstrap = Bootstrap5(app)
 csrf = CSRFProtect(app)
@@ -111,6 +114,22 @@ def login_required(f):
         return f(user_id, user_group, username, *args, **kwargs)
 
     return decorator
+
+
+####
+# Serve Static Content
+####
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
+@app.route('/logo.svg')
+def logo():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'logo.svg', mimetype='image/svg+xml')
 
 
 ####
@@ -204,7 +223,72 @@ def register():
     return response
 
 
-@app.route("/", methods=['POST', 'GET'])
+@app.route("/changePassword", methods=['POST', 'GET'])
+@login_required
+def change_password(user_id, user_permission_group, username):
+    change_password_form = ChangePasswordForm()
+
+    user_data = dbHandler.get_user_from_ID(user_id)
+
+    if change_password_form.validate_on_submit():
+        if not PasswordHandler.check_password(change_password_form.old_password.data, user_data[3], user_data[2]):
+            change_password_form.old_password.data = ""
+            change_password_form.new_password.data = ""
+            change_password_form.new_password_confirm.data = ""
+            return make_response(
+                render_template(
+                    "change-password.html",
+                    form=change_password_form,
+                    message="Current password is incorrect",
+                    username=username,
+                    logout_page=url_for("logout"),
+                    change_password_page="#"
+                )
+            )
+        if not change_password_form.new_password.data == change_password_form.new_password_confirm.data:
+            change_password_form.old_password.data = ""
+            change_password_form.new_password.data = ""
+            change_password_form.new_password_confirm.data = ""
+            return make_response(
+                render_template(
+                    "change-password.html",
+                    form=change_password_form,
+                    message="New passwords do not match!",
+                    username=username,
+                    logout_page=url_for("logout"),
+                    change_password_page="#"
+                )
+            )
+        password_hash, password_salt = PasswordHandler.hash_password(change_password_form.new_password.data, PasswordHandler.gensalt())
+        dbHandler.update_user_password(user_id, password_hash, password_salt)
+        session_handler.delete_session(user_id)
+        change_password_form.old_password.data = ""
+        change_password_form.new_password.data = ""
+        change_password_form.new_password_confirm.data = ""
+        return make_response(
+            render_template(
+                "change-password.html",
+                form=change_password_form,
+                message="Password Changed, Redirecting...",
+                username=username,
+                logout_page=url_for("logout"),
+                change_password_page="#"
+            )
+        ), {"Refresh": f"3; url={url_for('login')}"}
+    return make_response(
+        render_template(
+            "change-password.html",
+            form=change_password_form,
+            message="",
+            username=username,
+            logout_page=url_for("logout"),
+            change_password_page="#"
+        )
+    )
+
+
+
+@app.route("/")
 @login_required
 @root_page_permission_redirect_fallback
 def index(user_id, user_permission_group, username):
@@ -239,7 +323,10 @@ def index(user_id, user_permission_group, username):
                                              items_list=display_list,
                                              table_list=table_list,
                                              function_buttons_list=[create_ticket_button],
-                                             username=username))
+                                             username=username,
+                                             logout_page=url_for("logout"),
+                                             change_password_page=url_for("change_password")
+                                             ))
     return response
 
 
@@ -430,7 +517,10 @@ def invite_codes(user_id, user_permission_group, username):
                                              items_list=invite_code_accordians,
                                              table_list=table_list,
                                              function_buttons_list=create_invite_button,
-                                             username=username))
+                                             username=username,
+                                             logout_page=url_for("logout"),
+                                             change_password_page=url_for("change_password")
+                                             ))
     return response
 
 
@@ -567,7 +657,10 @@ def user_groups(user_id, user_permission_group, username):
                                              items_list=usergroup_accordion,
                                              table_list=table_list,
                                              function_buttons_list=create_group_button,
-                                             username=username))
+                                             username=username,
+                                             logout_page=url_for("logout"),
+                                             change_password_page=url_for("change_password")
+                                             ))
     return response
 
 
@@ -875,7 +968,10 @@ def users(user_id, user_permission_group, username):
                                              items_list=users_accordions,
                                              table_list=table_list,
                                              function_buttons_list=[],
-                                             username=username))
+                                             username=username,
+                                             logout_page=url_for("logout"),
+                                             change_password_page=url_for("change_password")
+                                             ))
     return response
 
 
@@ -1166,10 +1262,12 @@ except ValueError:
 
 session_handler = SessionHandler(config)
 
+
 # Cleanup function for docker production environment, registered by atexit to ensure it runs when interpreter shuts down
 def production_exit_cleanup():
     dbHandler.no_resource_manager_exit()
     logger.info("Successfully shutdown with cleanup!")
+
 
 if __name__ == '__main__':
     # Only used for development operation, docker production image will import the app instead
