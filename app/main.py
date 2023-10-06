@@ -14,13 +14,13 @@ from flask import Flask, redirect, make_response, render_template, request, abor
 from flask_bootstrap import Bootstrap5
 from flask_wtf import CSRFProtect
 
-import permissionsHandler
-from databaseHandler import DatabaseHandler
-from passwordHandler import PasswordHandler
-from permissionsHandler import PermissionGroupObject
-from serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm, CreateUserGroupForm, \
+from . import permissionsHandler
+from .databaseHandler import DatabaseHandler
+from .passwordHandler import PasswordHandler
+from .permissionsHandler import PermissionGroupObject
+from .serverForms import LoginForm, RegisterForm, CreateTicketForm, UpdateTicketForm, CreateUserGroupForm, \
     UpdateUserGroupForm, UpdateUserForm, ChangePasswordForm
-from sessionHandler import SessionHandler
+from .sessionHandler import SessionHandler
 
 ####
 # Application Setup

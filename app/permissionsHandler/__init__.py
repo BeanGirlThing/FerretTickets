@@ -1,7 +1,9 @@
 import json
 import logging
+import os
 from configparser import ConfigParser
 
+MODULE_PATH = os.path.dirname(__file__)
 
 class PermissionGroupObject(object):
     GROUP_TITLE = None
@@ -19,7 +21,7 @@ class PermissionGroupObject(object):
         self.logger = logging.getLogger(
             f"{config.get('logger', 'logger_name')}.GroupPermissionObject-for-{self.GROUP_TITLE}")
 
-        with open("permissionsHandler/permissions_description.json") as f:
+        with open(f"{MODULE_PATH}/permissions_description.json") as f:
             self.PERMISSION_DESCRIPTIONS = json.loads(f.read())
 
         #  Following are the permissions a UserGroup within the system can have.
@@ -172,7 +174,7 @@ class PermissionsParser:
 
     @staticmethod
     def get_default_groups_from_file(config: ConfigParser):
-        with open("permissionsHandler/default_groups.json", "r") as f:
+        with open(f"{MODULE_PATH}/default_groups.json", "r") as f:
             default_permissions = json.loads(f.read())
 
         permissionGroups = []

@@ -5,9 +5,9 @@ from configparser import ConfigParser
 import json
 from pypika import Table, SQLLiteQuery
 
-from passwordHandler import PasswordHandler
-from permissionsHandler import PermissionGroupObject, PermissionsParser
-from inviteCodeHandler import InviteCodes
+from ..passwordHandler import PasswordHandler
+from ..permissionsHandler import PermissionGroupObject, PermissionsParser
+from ..inviteCodeHandler import InviteCodes
 
 
 class DatabaseHandler(object):
@@ -47,7 +47,9 @@ class DatabaseHandler(object):
 
         self.logger.info("Setting up DatabaseHandler...")
 
-        self.modulePath = f"{os.getcwd()}/databaseHandler"
+        self.modulePath = os.path.dirname(__file__)
+
+        self.demoPath = os.path.abspath(os.path.join(self.modulePath, "..", "demo_data"))
 
         self.databasePath = config.get("database", "path")
         if self.databasePath.upper() == "DEFAULT":
@@ -237,7 +239,7 @@ class DatabaseHandler(object):
 
     def create_demo_tickets(self):
         self.logger.debug("Creating demo tickets")
-        with open("demo_data/demo_tickets.json", "r") as f:
+        with open(f"{self.demoPath}/demo_tickets.json", "r") as f:
             demo_tickets = json.loads(f.read())
 
         for ticket in demo_tickets["tickets"]:
@@ -250,7 +252,7 @@ class DatabaseHandler(object):
 
     def create_demo_usergroups(self):
         self.logger.debug("Creating demo UserGroups")
-        with open("demo_data/demo_groups.json", "r") as f:
+        with open(f"{self.demoPath}/demo_groups.json", "r") as f:
             demo_groups = json.loads(f.read())
 
         for group in demo_groups["groups"]:
@@ -258,7 +260,7 @@ class DatabaseHandler(object):
 
     def create_demo_users(self):
         self.logger.debug("Creating demo Users")
-        with open("demo_data/demo_users.json", "r") as f:
+        with open(f"{self.demoPath}/demo_users.json", "r") as f:
             demo_users = json.loads(f.read())
 
         for user in demo_users["users"]:
@@ -570,7 +572,7 @@ class DatabaseHandler(object):
 
     def return_prettier_table_names(self) -> dict:
         self.logger.debug("Getting pretty table names from file")
-        with open("databaseHandler/staticQueries/index.json", "r") as f:
+        with open(f"{self.modulePath}/staticQueries/index.json", "r") as f:
             index_file = json.loads(f.read())
 
         return index_file["prettierTablenames"]
