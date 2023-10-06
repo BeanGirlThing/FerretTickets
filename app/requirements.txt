@@ -5,4 +5,5 @@ Flask-WTF==1.1.1
 PyPika==0.48.9
 shortuuid==1.0.11
 Bootstrap-Flask==2.3.0
+waitress==2.1.2
 werkzeug==2.3.7
