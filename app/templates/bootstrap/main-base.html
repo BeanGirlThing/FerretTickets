@@ -31,7 +31,28 @@
     }
 </script>
 
-<!-- Your page content -->
+<!-- Logout Modal -->
+<div class="modal fade" id="logoutModal" tabindex="-1" role="dialog"
+     aria-labelledby="logoutModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logoutModalTitle">Logout?</h5>
+                <button type="button" class="btn btn-light close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to logout?</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a role="button" class="btn btn-danger" href="{{ logout_page }}">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <nav id="navbar_top" class="navbar navbar-expand-lg border-bottom border-dark mb-2">
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('index') }}">
@@ -48,7 +69,8 @@
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                         <li>
-                            <a class="dropdown-item" href="{{ logout_page }}">
+                            <a class="dropdown-item" data-bs-toggle="modal"
+                                    data-bs-target="#logoutModal">
                                 Logout
                             </a>
                         </li>
