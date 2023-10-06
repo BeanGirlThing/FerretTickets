@@ -60,14 +60,17 @@ def permission_required(permissions: list, page_to_redirect_on_failure: str):
             user_group = dbHandler.get_user_from_ID(user_id)[4]
             user_permissions = dbHandler.get_permission_group_object(user_group)
             username = dbHandler.get_user_from_ID(user_id)[1]
+            logger.info(f"Permission check requested for {username}, with permissions {permissions}")
             for permission in permissions:
                 if not user_permissions.has_permission(permission):
+                    logger.info(f"{username} does not have sufficient permissions to perform this action")
                     return make_response(
                         render_template(
                             "permission-failed.html",
                             username=username
                         )
                     ), {"Refresh": f"3; url={url_for(page_to_redirect_on_failure)}"}
+            logger.info(f"{username} has passed permission check")
             return f(*args, **kwargs)
 
         return decorator
@@ -83,17 +86,23 @@ def root_page_permission_redirect_fallback(f):
         user_permission_group_id = dbHandler.get_user_from_ID(user_id)[4]
         user_group = dbHandler.get_permission_group_object(user_permission_group_id)
         allowed_page = get_allowed_page_by_permission(user_group)
+        username = dbHandler.get_username_from_id(user_id)[0]
+
+        logger.info(f"Checking page view permissions for {username}")
 
         if allowed_page is None:
+            logger.info(f"{username} is not permitted to view any page, redirecting to no_permitted_page fallback")
             return redirect(
                 url_for("no_permitted_page")
             )
 
         if allowed_page != "/":
+            logger.info(f"{username} is not permitted to view root page, redirecting to {allowed_page}")
             return redirect(
                 allowed_page
             )
 
+        logger.info(f"{username} is permitted to view root page")
         return f(*args, **kwargs)
 
     return decorator
@@ -102,14 +111,16 @@ def root_page_permission_redirect_fallback(f):
 def login_required(f):
     @wraps(f)
     def decorator(*args, **kwargs):
+        logger.info(f"Checking for valid session token from {request.remote_addr}")
         user_id = session_handler.is_valid_session()
         if user_id is None or user_id is False:
+            logger.info(f"No valid session token found from {request.remote_addr}, aborting 401")
             abort(401)
 
         user_permission_group_id = dbHandler.get_user_from_ID(user_id)[4]
-        print(user_permission_group_id)
         user_group = dbHandler.get_permission_group_object(user_permission_group_id)
         username = dbHandler.get_user_from_ID(user_id)[1]
+        logger.info(f"Valid session found for {request.remote_addr}, Username: {username}")
 
         return f(user_id, user_group, username, *args, **kwargs)
 
@@ -122,12 +133,14 @@ def login_required(f):
 
 @app.route('/favicon.ico')
 def favicon():
+    logger.debug(f"Request for favicon by {request.remote_addr}")
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 @app.route('/logo.svg')
 def logo():
+    logger.debug(f"Request for logo by {request.remote_addr}")
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'logo.svg', mimetype='image/svg+xml')
 
@@ -146,6 +159,7 @@ def login():
         return redirect(url_for("index"))
 
     if login_form.validate_on_submit():
+        logger.info(f"Request to login from {request.remote_addr}")
         username = login_form.username.data
         password = login_form.password.data
 
@@ -162,6 +176,7 @@ def login():
                 response.set_cookie("session_token", session_handler.new_session(user_id=user_data[0]))
                 return response
 
+        logger.info(f"Request to login from {request.remote_addr} denied, incorrect username or password")
         login_form.password.data = ""
         response = make_response(
             render_template("login.html", message="Username or Password incorrect", form=login_form)
@@ -184,8 +199,9 @@ def register():
         return redirect(url_for("index"))
 
     if register_form.validate_on_submit():
-
+        logger.info(f"Request to register from {request.remote_addr} with username {register_form.username.data}")
         if register_form.password.data != register_form.confirm_password.data:
+            logger.info(f"Request to register from {request.remote_addr} refused: Password Check Failed")
             register_form.password.data = ""
             register_form.confirm_password.data = ""
             response = make_response(
@@ -194,6 +210,7 @@ def register():
             return response
 
         if not dbHandler.check_invite_code(register_form.invite_code.data):
+            logger.info(f"Request to register from {request.remote_addr} refused: Invalid Invite Code")
             register_form.password.data = ""
             register_form.confirm_password.data = ""
             response = make_response(
@@ -201,6 +218,8 @@ def register():
                                 form=register_form)
             )
             return response
+
+        logger.info(f"Registration verified for {request.remote_addr}, creating user {register_form.username.data}")
         password_hash, salt = PasswordHandler.hash_password(register_form.password.data)
         new_user_successful = dbHandler.register_new_user(
             register_form.username.data,
@@ -208,6 +227,7 @@ def register():
             salt
         )
         if new_user_successful:
+            logger.info("User created, consuming invite code")
             dbHandler.consume_invite_code(register_form.invite_code.data, register_form.username.data)
             response = make_response(
                 render_template("register.html", form=register_form, message="Registration successful, redirecting..."))
@@ -231,21 +251,22 @@ def change_password(user_id, user_permission_group, username):
     user_data = dbHandler.get_user_from_ID(user_id)
 
     if change_password_form.validate_on_submit():
+        logger.info(f"Request to change password from {username}")
         if not PasswordHandler.check_password(change_password_form.old_password.data, user_data[3], user_data[2]):
             change_password_form.old_password.data = ""
             change_password_form.new_password.data = ""
             change_password_form.new_password_confirm.data = ""
+            logger.info("Failed to change password, user entered incorrect current password")
             return make_response(
                 render_template(
                     "change-password.html",
                     form=change_password_form,
                     message="Current password is incorrect",
                     username=username,
-                    logout_page=url_for("logout"),
-                    change_password_page="#"
                 )
             )
         if not change_password_form.new_password.data == change_password_form.new_password_confirm.data:
+            logger.info("Failed to change password, Password Check Failed")
             change_password_form.old_password.data = ""
             change_password_form.new_password.data = ""
             change_password_form.new_password_confirm.data = ""
@@ -255,11 +276,11 @@ def change_password(user_id, user_permission_group, username):
                     form=change_password_form,
                     message="New passwords do not match!",
                     username=username,
-                    logout_page=url_for("logout"),
-                    change_password_page="#"
                 )
             )
-        password_hash, password_salt = PasswordHandler.hash_password(change_password_form.new_password.data, PasswordHandler.gensalt())
+        logger.info(f"Password change successful for {username}")
+        password_hash, password_salt = PasswordHandler.hash_password(change_password_form.new_password.data,
+                                                                     PasswordHandler.gensalt())
         dbHandler.update_user_password(user_id, password_hash, password_salt)
         session_handler.delete_session(user_id)
         change_password_form.old_password.data = ""
@@ -271,8 +292,6 @@ def change_password(user_id, user_permission_group, username):
                 form=change_password_form,
                 message="Password Changed, Redirecting...",
                 username=username,
-                logout_page=url_for("logout"),
-                change_password_page="#"
             )
         ), {"Refresh": f"3; url={url_for('login')}"}
     return make_response(
@@ -281,11 +300,8 @@ def change_password(user_id, user_permission_group, username):
             form=change_password_form,
             message="",
             username=username,
-            logout_page=url_for("logout"),
-            change_password_page="#"
         )
     )
-
 
 
 @app.route("/")
@@ -307,6 +323,7 @@ def index(user_id, user_permission_group, username):
                                            disabled=create_ticket_button_disabled
                                            )
 
+    logger.info(f"Displaying all tickets for {username}")
     for ticket in all_tickets:
         pretty_ticket_state, ticket_state_background_colour = get_pretty_ticket_state(ticket[4])
         try:
@@ -328,8 +345,6 @@ def index(user_id, user_permission_group, username):
                                              table_list=table_list,
                                              function_buttons_list=[create_ticket_button],
                                              username=username,
-                                             logout_page=url_for("logout"),
-                                             change_password_page=url_for("change_password")
                                              ))
     return response
 
@@ -347,6 +362,16 @@ def ticket_details(user_id, user_permission_group, username):
     status_disabled = ""
 
     if "t" not in query_parameters.keys():
+        logger.info(f"{username} attempted to access ticket details without specifying a ticket")
+        return make_response(
+            render_template("invalid-operation.html",
+                            username=username)
+        ), {"Refresh": f"3; url={url_for('index')}"}
+
+    try:
+        int(query_parameters["t"])
+    except ValueError:
+        logger.info(f"{username} attempted to access ticket details with an invalid ticket ID")
         return make_response(
             render_template("invalid-operation.html",
                             username=username)
@@ -374,9 +399,13 @@ def ticket_details(user_id, user_permission_group, username):
     pretty_ticket_name, ticket_badge_background_colour = get_pretty_ticket_state(ticket[4])
 
     if query_parameters.get("deleteticket"):
+        logger.info(f"{username} is attempting to delete ticket {ticket[0]} (ID)")
         if not user_permission_group.has_permission("DELETE_TICKETS"):
+            logger.info(f"{username} does not have sufficient privileges to delete tickets")
             return make_response(render_template("permission-failed.html", username=username)), {
                 "Refresh": f"3; url={url_for('index')}"}
+
+        logger.info(f"User {username} has sufficient permission, deleting ticket {ticket[0]} (ID)")
         dbHandler.delete_ticket(ticket[0])
         response = make_response(render_template("ticket-page.html",
                                                  ticket_title=ticket[2],
@@ -393,6 +422,11 @@ def ticket_details(user_id, user_permission_group, username):
         return response, {"Refresh": f"3; url={url_for('index')}"}
 
     if update_ticket_form.validate_on_submit():
+        logger.info(f"{username} is attempting to update ticket {ticket[0]} (ID)")
+        if not user_permission_group.has_permission("UPDATE_TICKETS"):
+            logger.info(f"{username} does not have sufficient privileges to update tickets")
+            return make_response(render_template("permission-failed.html", username=username))
+        logger.info(f"User {username} has sufficient permission, updating ticket {ticket[0]} (ID)")
         dbHandler.update_ticket(ticket[0], update_ticket_form.title.data, update_ticket_form.description.data)
         response = make_response(
             render_template("update-ticket.html", form=update_ticket_form, message="Updated, Redirecting...",
@@ -400,6 +434,7 @@ def ticket_details(user_id, user_permission_group, username):
         return response, {"Refresh": f"3; url={url_for('ticket_details', t=ticket[0])}"}
 
     if len(query_parameters) == 1:
+        logger.info(f"{username} is being served ticket information for {ticket[0]} (ID)")
         response = make_response(
             render_template(
                 "ticket-page.html",
@@ -425,6 +460,7 @@ def ticket_details(user_id, user_permission_group, username):
             response = make_response(render_template("update-ticket.html", username=username, form=update_ticket_form))
             return response
         if query_parameters.get("updatestatus"):
+            logger.info(f"{username} is attempting to update ticket status for ticket {ticket[0]} (ID)")
             valid_ticket_states = ["backlog", "indev", "done"]
             can_resolve = True
             if not user_permission_group.has_permission("RESOLVE_OTHERS_TICKETS"):
@@ -436,8 +472,12 @@ def ticket_details(user_id, user_permission_group, username):
 
             if can_resolve:
                 if not query_parameters.get("updatestatus") in valid_ticket_states:
+                    logger.info(
+                        f"{username} has sent an invalid ticket state while trying to update state for ticket {ticket[0]} (ID)")
                     response = make_response(render_template("invalid-operation.html", username=username))
                     return response, {"Refresh": f"3; url={url_for('index')}"}
+                logger.info(
+                    f"{username} has sufficient permission to update state of ticket {ticket[0]} (ID), updating")
                 dbHandler.update_ticket_status(ticket[0], query_parameters.get("updatestatus"))
                 response = make_response(render_template("ticket-page.html",
                                                          ticket_title=ticket[2],
@@ -453,6 +493,8 @@ def ticket_details(user_id, user_permission_group, username):
                                                          message="Status updated, Redirecting..."))
                 return response, {"Refresh": f"3; url={url_for('ticket_details', t=ticket[0])}"}
             else:
+                logger.info(
+                    f"{username} does not have sufficient privileges to change the status of ticket {ticket[0]} (ID)")
                 response = make_response(render_template("permission-failed.html", username=username))
                 return response, {"Refresh": f"3; url={url_for('index')}"}
 
@@ -464,16 +506,18 @@ def create_ticket(user_id, user_permission_group, username):
     create_ticket_form = CreateTicketForm()
 
     if create_ticket_form.validate_on_submit():
+        logger.info(f"{username} is creating a ticket")
         dbHandler.create_ticket(user_id,
                                 create_ticket_form.title.data,
                                 create_ticket_form.description.data,
                                 create_ticket_form.state.data
                                 )
         response = make_response(render_template("create-ticket.html", form=create_ticket_form,
-                                                 message="Ticket created successfully, redirecting..."))
+                                                 message="Ticket created successfully, redirecting...",
+                                                 username=username))
         return response, {"Refresh": f"3; url={url_for('index')}"}
 
-    response = make_response(render_template("create-ticket.html", form=create_ticket_form, message=""))
+    response = make_response(render_template("create-ticket.html", form=create_ticket_form, message="", username=username))
     return response
 
 
@@ -502,6 +546,7 @@ def invite_codes(user_id, user_permission_group, username):
         revoke_disabled = ""
 
     invite_code_accordians = []
+    logger.info(f"Providing invite code list to {username}")
     for code in invite_codes:
         specific_code_revoke_button = revoke_disabled
         badge_text, badge_background = get_pretty_invite_code_state(bool(code[3]), code[4])
@@ -531,8 +576,6 @@ def invite_codes(user_id, user_permission_group, username):
                                              table_list=table_list,
                                              function_buttons_list=create_invite_button,
                                              username=username,
-                                             logout_page=url_for("logout"),
-                                             change_password_page=url_for("change_password")
                                              ))
     return response
 
@@ -541,27 +584,20 @@ def invite_codes(user_id, user_permission_group, username):
 @login_required
 @permission_required(["CREATE_CODES"], "invite_codes")
 def new_invite_code(user_id, user_permission_group, username):
-    if user_permission_group.has_permission("CREATE_CODES"):
-        dbHandler.create_invite_code(user_id)
-        flash("Code successfully created!")
-        return redirect(url_for("invite_codes"))
-    else:
-        return make_response(
-            render_template("permission-failed.html", username=username)
-        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+    logger.info(f"{username} is generating a new invite code")
+    dbHandler.create_invite_code(user_id)
+    return redirect(url_for("invite_codes"))
 
 
 @app.route("/revokeCode")
 @login_required
 @permission_required(["REVOKE_CODES"], "invite_codes")
 def revoke_invite_code(user_id, user_permission_group, username):
-    if not user_permission_group.has_permission("REVOKE_CODES"):
-        return make_response(
-            render_template("permission-failed.html", username=username)
-        ), {"Refresh": f"3; url={url_for('invite_codes')}"}
+    logger.info(f"{username} is attempting to revoke an invite code")
 
     query_parameters = request.args.to_dict()
     if "c" not in query_parameters.keys():
+        logger.info(f"Request to revoke invite code from {username} refused, invalid query parameters")
         return make_response(
             render_template("invalid-operation.html", username=username)
         ), {"Refresh": f"3; url={url_for('invite_codes')}"}
@@ -569,15 +605,20 @@ def revoke_invite_code(user_id, user_permission_group, username):
     try:
         code_id = int(query_parameters["c"])
     except ValueError:
+        logger.info(f"Request to revoke invite code from {username} refused, invalid query parameters")
+
         return make_response(
             render_template("invalid-operation.html", username=username)
         ), {"Refresh": f"3; url={url_for('invite_codes')}"}
 
     if not dbHandler.check_invite_code(code_id=code_id):
+        logger.info(f"Request to revoke invite code from {username} refused, invalid invite code")
+
         return make_response(
             render_template("invalid-operation.html", username=username)
         ), {"Refresh": f"3; url={url_for('invite_codes')}"}
 
+    logger.info(f"{username} has successfully revoked invite code {code_id} (ID)")
     dbHandler.revoke_invite_code(code_id)
     return redirect(url_for("invite_codes"))
 
@@ -607,6 +648,7 @@ def user_groups(user_id, user_permission_group, username):
         usergroups_list.append(permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config, group))
 
     usergroup_accordion = []
+    logger.info(f"Displaying all usergroups to {username}")
     for group in usergroups_list:
 
         group_use_count = 0
@@ -671,8 +713,6 @@ def user_groups(user_id, user_permission_group, username):
                                              table_list=table_list,
                                              function_buttons_list=create_group_button,
                                              username=username,
-                                             logout_page=url_for("logout"),
-                                             change_password_page=url_for("change_password")
                                              ))
     return response
 
@@ -681,7 +721,7 @@ def user_groups(user_id, user_permission_group, username):
 @login_required
 @permission_required(["DELETE_USERGROUPS"], "user_groups")
 def delete_usergroups(user_id, user_permission_group, username):
-    logger.info(f"Attempting to delete group {request.args.get('g')}")
+    logger.info(f"{username} is attempting to delete group {request.args.get('g')}")
     all_usergroups = dbHandler.get_all_user_groups()
     all_users = dbHandler.get_all_users()
     try:
@@ -741,6 +781,7 @@ def delete_usergroups(user_id, user_permission_group, username):
 @login_required
 @permission_required(["UPDATE_USERGROUPS"], "user_groups")
 def update_existing_group(user_id, user_permission_group, username):
+    logger.info(f"{username} is attempting to update a usergroup")
     permission_tuple = namedtuple("Permission", ["permission_selection_field", "permission_value"])
     try:
         group_id = int(request.args.get("g"))
@@ -839,6 +880,7 @@ def update_existing_group(user_id, user_permission_group, username):
                 if not found_permission:
                     permission_list[old_permission_tuple.permission_selection_field] = False
 
+            logger.info(f"{username} has successfully updated the permissions on {group_to_update.GROUP_TITLE}")
             group_to_update.update_permissions(permission_list)
             dbHandler.update_usergroup(group_to_update)
 
@@ -872,6 +914,7 @@ def new_user_group(user_id, user_permission_group, username):
     all_existing_groups = dbHandler.get_all_user_groups()
 
     if create_group_form.validate_on_submit():
+        logger.info(f"{username} is attempting to create a new UserGroup")
         if create_group_form.additional_permission_button.data:
             create_group_form.permissions.append_entry()
             return make_response(
@@ -920,6 +963,7 @@ def new_user_group(user_id, user_permission_group, username):
                 permission_value = True if field["permission_value"] == "True" else False
                 permission_list[field["permission_selection_field"]] = permission_value
 
+            logger.info(f"{username} has successfully created a new UserGroup titled {created_group.GROUP_TITLE}")
             created_group.update_permissions(permission_list)
             dbHandler.create_usergroup(created_group)
 
@@ -951,6 +995,7 @@ def users(user_id, user_permission_group, username):
     all_users = dbHandler.get_all_users()
 
     users_accordions = []
+    logger.info(f"Displaying users list to {username}")
     for user in all_users:
         user_group_for_account = permissionsHandler.PermissionsParser.get_group_object_from_sql_response(config,
                                                                                                          dbHandler.get_usergroup_by_id(
@@ -982,8 +1027,6 @@ def users(user_id, user_permission_group, username):
                                              table_list=table_list,
                                              function_buttons_list=[],
                                              username=username,
-                                             logout_page=url_for("logout"),
-                                             change_password_page=url_for("change_password")
                                              ))
     return response
 
@@ -997,7 +1040,7 @@ def update_user_account(user_id, user_permission_group, username):
     try:
         user_to_update_id = int(request.args.get("u"))
     except ValueError:
-        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        logger.warning(f"{request.args.get('u')} Not a valid user ID")
         return make_response(
             render_template(
                 "invalid-operation.html",
@@ -1006,7 +1049,7 @@ def update_user_account(user_id, user_permission_group, username):
         ), {"Refresh": f"3; url={url_for('users')}"}
 
     if user_to_update_id == system_dependant_users["superuser"]:
-        logger.warning("Cannot delete system dependant usergroup!")
+        logger.warning("Cannot update system dependant user!")
         return make_response(
             render_template(
                 "invalid-operation.html",
@@ -1026,6 +1069,7 @@ def update_user_account(user_id, user_permission_group, username):
     update_user_form.user_group.choices = user_group_selection
 
     if update_user_form.validate_on_submit():
+        logger.info(f"{username} has successfully updated group for user {user_to_update_id} (ID)")
         user_new_user_group = update_user_form.user_group.data
         dbHandler.set_user_usergroup(user_to_update_id, user_new_user_group)
         return make_response(
@@ -1056,7 +1100,7 @@ def delete_user_account(user_id, user_permission_group, username):
     try:
         user_to_delete_id = int(request.args.get("u"))
     except ValueError:
-        logger.warning(f"{request.args.get('g')} Not a valid group ID")
+        logger.warning(f"{request.args.get('u')} Not a valid user ID")
         return make_response(
             render_template(
                 "invalid-operation.html",
@@ -1065,7 +1109,7 @@ def delete_user_account(user_id, user_permission_group, username):
         ), {"Refresh": f"3; url={url_for('users')}"}
 
     if user_to_delete_id == system_dependant_users["superuser"]:
-        logger.warning("Cannot delete system dependant usergroup!")
+        logger.warning("Cannot delete system dependant user!")
         return make_response(
             render_template(
                 "invalid-operation.html",
@@ -1073,6 +1117,7 @@ def delete_user_account(user_id, user_permission_group, username):
             )
         ), {"Refresh": f"3; url={url_for('users')}"}
 
+    logger.info(f"{username} has successfully deleted user {user_to_delete_id} (ID)")
     dbHandler.delete_user(user_to_delete_id)
     logger.warning(f"User {user_to_delete_id} deleted!")
 
@@ -1082,6 +1127,7 @@ def delete_user_account(user_id, user_permission_group, username):
 @app.route("/noPermittedPage")
 @login_required
 def no_permitted_page(user_id, user_permission_group, username):
+    logger.warning(f"{username} does not have permission to view any page, stuck on permission-failed fallback")
     return make_response(
         render_template(
             "permission-failed.html",
@@ -1093,6 +1139,7 @@ def no_permitted_page(user_id, user_permission_group, username):
 @app.route("/logout")
 @login_required
 def logout(user_id, user_permission_group, username):
+    logger.info(f"{username} is logging out")
     session_handler.delete_session(user_id)
 
     response = make_response(redirect(url_for("login")))
@@ -1206,18 +1253,6 @@ def no_token(*args):
     return response
 
 
-#
-# @app.errorhandler(403)
-# def permission_failure(code, allowed_page):
-#     return redirect(allowed_page)
-#
-#
-# @app.errorhandler(409)
-# def no_visible_page(code, username):
-#     response = make_response(render_template("permission-failed.html", username=username))
-#     return response, {"Refresh": f"3; url={url_for('index')}"}
-
-
 ####
 # Application Entrypoint
 ####
@@ -1285,6 +1320,7 @@ def production_exit_cleanup():
 if __name__ == '__main__':
     # Only used for development operation, docker production image will import the app instead
     with DatabaseHandler(config) as dbHandler:
+        logger.info("Starting up in debug mode!")
         system_dependant_usergroups["supergroup"] = dbHandler.get_usergroup_id_by_name(
             config.get("system_groups", "supergroup_name"))
         system_dependant_usergroups["default"] = dbHandler.get_usergroup_id_by_name(
@@ -1294,6 +1330,7 @@ if __name__ == '__main__':
 
         app.run(debug=debug_mode, use_reloader=use_reloader, host=host_address, port=port)
 else:
+    logger.info("Starting up in production mode!")
     dbHandler = DatabaseHandler(config)
     dbHandler.no_resource_manager_entry()
 

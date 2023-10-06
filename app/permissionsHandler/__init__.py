@@ -84,13 +84,17 @@ class PermissionGroupObject(object):
         self.logger.info("Object created Successfully!")
 
     def find_permission_category_location(self, permission_name: str) -> bool | str:
+        self.logger.debug(f"Finding category for {permission_name}")
         for category in self.PERMISSION_CATEGORIES:
             for key in self.PERMISSIONS[category]:
                 if key == permission_name:
+                    self.logger.debug(f"Category is {category}")
                     return category
+        self.logger.warning(f"No matching category for {permission_name}")
         return False
 
     def update_permissions(self, permission_list: dict):
+        self.logger.debug("Updating permissions")
         for permission, value in permission_list.items():
             if permission == "ADMIN":
                 self.PERMISSIONS["ADMIN"] = value
@@ -107,8 +111,10 @@ class PermissionGroupObject(object):
 
 
     def build_permission_string(self):
+        self.logger.debug("Building permission string")
         permission_string = ""
         if self.PERMISSIONS["ADMIN"]:
+            self.logger.debug("Usergroup is administrator, returning ADMIN")
             return "ADMIN"
 
         for i, category in enumerate(self.PERMISSION_CATEGORIES):
@@ -123,10 +129,13 @@ class PermissionGroupObject(object):
                 permission_string = f"{permission_string}{category},"
             else:
                 permission_string = f"{permission_string}{category_permission_string}"
+        self.logger.debug(f"Permission string built: {permission_string}")
         return permission_string
 
     def has_permission(self, permission_name: str):
+        self.logger.debug(f"Testing if permission {permission_name} is true")
         if self.PERMISSIONS["ADMIN"]:
+            self.logger.debug("Usergroup is admin, bypassing permission test")
             return True
         category = self.find_permission_category_location(permission_name)
         if category is not False:
@@ -135,6 +144,7 @@ class PermissionGroupObject(object):
             return False
 
     def has_permission_category(self, permission_category: str):
+        self.logger.debug(f"Testing if group has entire permission category {permission_category}")
         response = True
         for permission in self.PERMISSIONS[permission_category].values():
             if not permission:
@@ -142,6 +152,7 @@ class PermissionGroupObject(object):
         return response
 
     def get_description_by_permission(self, permission_name):
+        self.logger.debug(f"Getting description for {permission_name}")
         if permission_name in self.PERMISSION_CATEGORIES:
             return "Permission Category"
         else:
@@ -149,10 +160,6 @@ class PermissionGroupObject(object):
 
     def is_administrator(self):
         return self.PERMISSIONS["ADMIN"]
-
-
-
-
 
 
 class PermissionsParser:

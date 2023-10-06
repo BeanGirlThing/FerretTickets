@@ -47,7 +47,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <a role="button" class="btn btn-danger" href="{{ logout_page }}">Logout</a>
+                <a role="button" class="btn btn-danger" href="{{ url_for('logout') }}">Logout</a>
             </div>
         </div>
     </div>
@@ -75,7 +75,7 @@
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{{ change_password_page }}">
+                            <a class="dropdown-item" href="{{ url_for('change_password') }}">
                                 Change Password
                             </a>
                         </li>

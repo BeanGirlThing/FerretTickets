@@ -107,7 +107,6 @@ class DatabaseHandler(object):
             self.logger.info("Database already exists, skipping table setup")
             self.set_superuser_consts()
 
-        return self
 
     def no_resource_manager_exit(self):
         self.logger.info(f"Closing database connection to {self.databasePath}...")
@@ -146,7 +145,7 @@ class DatabaseHandler(object):
         self.logger.info("Database connection closed")
 
     def setup_new_database(self):
-        self.logger.debug("Creating default tables")
+        self.logger.info("Creating default tables")
 
         for fileName in self.staticQueriesJsonFile["createTables"]:
             try:
@@ -161,30 +160,30 @@ class DatabaseHandler(object):
 
         self.commit_to_database()
 
-        self.logger.debug("Default Tables created")
+        self.logger.info("Default Tables created")
 
-        self.logger.debug("Creating system dependant UserGroups")
+        self.logger.info("Creating system dependant UserGroups")
 
         system_groups = PermissionsParser.get_system_dependant_groups_from_config(self.config)
         for group in system_groups:
             self.create_usergroup(group)
 
-        self.logger.debug("Successfully created system dependant UserGroups")
+        self.logger.info("Successfully created system dependant UserGroups")
 
-        self.logger.debug("Creating default UserGroups")
+        self.logger.info("Creating default UserGroups")
 
         default_groups = PermissionsParser.get_default_groups_from_file(self.config)
 
         for group in default_groups:
             self.create_usergroup(group)
 
-        self.logger.debug("Successfully created default UserGroups")
+        self.logger.info("Successfully created default UserGroups")
 
-        self.logger.debug("Inserting Superuser into Users")
+        self.logger.info("Inserting Superuser into Users")
 
         supergroup_group_id = self.get_usergroup_id_by_name(self.config.get("system_groups", "supergroup_name"))
 
-        self.logger.debug(f"Superuser group ID is {str(supergroup_group_id)}")
+        self.logger.info(f"Superuser group ID is {str(supergroup_group_id)}")
 
         superuser_hashed_password, superuser_salt = PasswordHandler.hash_password(
             self.config.get("superuser", "password"))
@@ -201,7 +200,7 @@ class DatabaseHandler(object):
         self.set_superuser_consts()
 
         self.commit_to_database()
-        self.logger.debug("Successfully inserted Superuser into Users Table")
+        self.logger.info("Successfully inserted Superuser into Users Table")
 
         default_invite_codes = self.config.getint("invite_codes", "initial_creation")
         self.logger.info(f"Creating {str(default_invite_codes)} invite codes")
@@ -210,12 +209,14 @@ class DatabaseHandler(object):
             self.create_invite_code(self.SUPERUSER_USER_ID)
 
         if self.config.getboolean("demo_mode", "create_demo_data"):
+            self.logger.info("Demo Mode is ON, inserting demo data into the database")
             self.create_demo_usergroups()
             self.create_demo_users()
             self.create_demo_tickets()
 
 
     def create_usergroup(self, group: PermissionGroupObject):
+        self.logger.debug(f"Creating usergroup with name {group.GROUP_TITLE}")
         group_creation_query = SQLLiteQuery.into(self.userGroupsTable) \
             .columns("group_title", "permissions") \
             .insert(
@@ -226,6 +227,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def update_usergroup(self, group: PermissionGroupObject):
+        self.logger.debug(f"Updating UserGroup {group.DATABASE_GROUP_ID} (ID)")
         group_creation_query = SQLLiteQuery.update(self.userGroupsTable) \
             .set("permissions", group.build_permission_string()) \
             .where(self.userGroupsTable.ID == group.DATABASE_GROUP_ID)
@@ -234,6 +236,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def create_demo_tickets(self):
+        self.logger.debug("Creating demo tickets")
         with open("demo_data/demo_tickets.json", "r") as f:
             demo_tickets = json.loads(f.read())
 
@@ -246,6 +249,7 @@ class DatabaseHandler(object):
             )
 
     def create_demo_usergroups(self):
+        self.logger.debug("Creating demo UserGroups")
         with open("demo_data/demo_groups.json", "r") as f:
             demo_groups = json.loads(f.read())
 
@@ -253,6 +257,7 @@ class DatabaseHandler(object):
             self.create_usergroup(PermissionGroupObject(self.config, group["name"], group["permissions"]))
 
     def create_demo_users(self):
+        self.logger.debug("Creating demo Users")
         with open("demo_data/demo_users.json", "r") as f:
             demo_users = json.loads(f.read())
 
@@ -265,6 +270,7 @@ class DatabaseHandler(object):
 
 
     def create_ticket(self, creator: int, title: str, description: str, state: str):
+        self.logger.debug(f"Creating new ticket {title}")
         create_ticket_query = SQLLiteQuery.into(self.ticketsTable) \
             .columns("Creator", "Title", "Description", "State") \
             .insert(creator, title, description, state)
@@ -272,6 +278,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def get_all_tickets(self):
+        self.logger.debug("Fetching all tickets")
         get_tickets_query = SQLLiteQuery.from_(self.ticketsTable) \
             .select("ID", "creator", "title", "description", "state")
 
@@ -280,6 +287,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchall()
 
     def get_all_invite_codes(self):
+        self.logger.debug("Fetching all Invite Codes")
         get_invites_query = SQLLiteQuery.from_(self.inviteCodesTable) \
             .select("ID", "code", "creator", "revoked", "used_by")
 
@@ -288,6 +296,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchall()
 
     def set_user_usergroup(self, user: int, usergroup: int):
+        self.logger.debug(f"Setting user {user} (ID) to usergroup {usergroup} (ID)")
         set_user_usergroup_query = SQLLiteQuery.update(self.usersTable) \
             .set(self.usersTable.usergroup, usergroup) \
             .where(self.usersTable.ID == user)
@@ -296,6 +305,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def delete_usergroup(self, group_id: int):
+        self.logger.debug(f"Deleting UserGroup {group_id} (ID)")
         delete_group_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .where(self.userGroupsTable.ID == group_id) \
             .delete()
@@ -303,6 +313,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def delete_user(self, user_id:int):
+        self.logger.debug(f"Deleting user {user_id} (ID)")
         delete_user_query = SQLLiteQuery.from_(self.usersTable) \
             .where(self.usersTable.ID == user_id) \
             .delete()
@@ -310,6 +321,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def get_all_user_groups(self):
+        self.logger.debug("Fetching all UserGroups")
         get_usergroups_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("ID", "group_title", "permissions")
         self.execute_query(get_usergroups_query.get_sql())
@@ -317,6 +329,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchall()
 
     def get_usergroup_by_id(self, usergroup_id: int):
+        self.logger.debug(f"Fetching UserGroup with ID {usergroup_id} (ID)")
         get_usergroup_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("ID", "group_title", "permissions") \
             .where(self.userGroupsTable.ID == usergroup_id)
@@ -325,6 +338,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchone()
 
     def get_all_users(self):
+        self.logger.debug("Fetching all users")
         get_users_query = SQLLiteQuery.from_(self.usersTable) \
             .select("ID", "username", "usergroup")
         self.execute_query(get_users_query.get_sql())
@@ -332,6 +346,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchall()
 
     def get_ticket(self, ticket_id: int):
+        self.logger.debug(f"Getting ticket {ticket_id} (ID)")
         get_tickets_query = SQLLiteQuery.from_(self.ticketsTable) \
             .select("ID", "creator", "title", "description", "state") \
             .where(self.ticketsTable.ID == ticket_id)
@@ -341,6 +356,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchone()
 
     def delete_ticket(self, ticket_id: int):
+        self.logger.debug(f"Deleting ticket {ticket_id} (ID)")
         delete_ticket_query = SQLLiteQuery.from_(self.ticketsTable) \
             .where(self.ticketsTable.ID == ticket_id) \
             .delete()
@@ -349,6 +365,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def update_ticket(self, ticket_id: int, title: str, description: str):
+        self.logger.debug(f"Updating {ticket_id} (ID)")
         update_title_query = SQLLiteQuery.update(self.ticketsTable) \
             .set(self.ticketsTable.Title, title) \
             .where(self.ticketsTable.ID == ticket_id)
@@ -361,6 +378,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def update_ticket_status(self, ticket_id: int, status: str):
+        self.logger.debug(f"Updating status for ticket {ticket_id} (ID)")
         update_ticket_status_query = SQLLiteQuery.update(self.ticketsTable) \
             .set(self.ticketsTable.State, status) \
             .where(self.ticketsTable.ID == ticket_id)
@@ -369,12 +387,13 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def set_superuser_consts(self):
+        self.logger.debug("Setting constants for superuser")
         self.SUPERUSER_USERNAME = self.config.get("superuser", "username")
         self.SUPERUSER_USER_ID = self.get_user_id_by_name(self.SUPERUSER_USERNAME)
         self.SUPERUSER_GROUP_ID = self.get_usergroup_id_by_name("superuser")
 
     def execute_query(self, sql: str):
-        # self.logger.debug(f"Executing query: {sql}")
+        self.logger.debug(f"Executing query: {sql}")
         self.cursor.execute(sql)
 
     def commit_to_database(self):
@@ -382,6 +401,7 @@ class DatabaseHandler(object):
         self.connection.commit()
 
     def get_username_from_id(self, user_id: int):
+        self.logger.debug(f"Getting username for user {user_id} (ID)")
         username_lookup = SQLLiteQuery.from_(self.usersTable) \
             .select("username") \
             .where(self.usersTable.ID == user_id)
@@ -389,6 +409,7 @@ class DatabaseHandler(object):
         return self.cursor.fetchone()
 
     def get_user_from_username(self, username: str):
+        self.logger.info(f"Getting userdata from username {username}")
         userdata_lookup = SQLLiteQuery.from_(self.usersTable) \
             .select("*") \
             .where(self.usersTable.username == username)
@@ -404,6 +425,7 @@ class DatabaseHandler(object):
         return response[0] if len(response) != 0 else False
 
     def get_user_from_ID(self, user_id: int):
+        self.logger.debug(f"Getting userdata for user {user_id} (ID)")
         id_lookup = SQLLiteQuery.from_(self.usersTable) \
             .select("*") \
             .where(self.usersTable.ID == user_id)
@@ -418,6 +440,7 @@ class DatabaseHandler(object):
         return response if len(response) != 0 else False
 
     def check_invite_code(self, code: str=None, code_id: int=None):
+        self.logger.debug(f"Checking validity of Invite Code {code if code is not None else code_id}")
         if code is not None:
             invite_lookup = SQLLiteQuery.from_(self.inviteCodesTable) \
                 .select("*") \
@@ -439,6 +462,7 @@ class DatabaseHandler(object):
             return False
 
     def consume_invite_code(self, code: str, used_by: str):
+        self.logger.debug(f"Consuming invite code {code}")
         update_invite_code = SQLLiteQuery.update(self.inviteCodesTable) \
             .set(self.inviteCodesTable.used_by, used_by) \
             .where(self.inviteCodesTable.code == code)
@@ -446,6 +470,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def revoke_invite_code(self, code_id: int):
+        self.logger.debug(f"Revoking invite code {code_id} (ID)")
         update_invite_code = SQLLiteQuery.update(self.inviteCodesTable) \
             .set(self.inviteCodesTable.revoked, True) \
             .where(self.inviteCodesTable.ID == code_id)
@@ -453,6 +478,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def update_user_password(self, user_id: str, password_hash: str, salt: str):
+        self.logger.debug(f"Updating password for {user_id} (ID)")
         update_password_query = SQLLiteQuery.update(self.usersTable) \
             .set(self.usersTable.password, password_hash) \
             .where(self.usersTable.ID == user_id)
@@ -467,6 +493,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def register_new_user(self, username: str, password_hash: str, salt: str):
+        self.logger.debug(f"Registering new user {username}")
         usergroup = self.get_usergroup_id_by_name("default")
         new_user_creation_query = SQLLiteQuery.into(self.usersTable) \
             .columns("username", "password", "salt", "usergroup") \
@@ -485,6 +512,7 @@ class DatabaseHandler(object):
         return True
 
     def get_usergroup_id_by_name(self, usergroup_name: str):
+        self.logger.debug(f"Getting usergroup ID by group name {usergroup_name}")
         group_name_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("ID") \
             .where(self.userGroupsTable.group_title == usergroup_name)
@@ -498,6 +526,7 @@ class DatabaseHandler(object):
             return usergroup_id[0]
 
     def get_user_id_by_name(self, username: str):
+        self.logger.debug(f"Getting user ID by username {username}")
         user_id_query = SQLLiteQuery.from_(self.usersTable) \
             .select("ID") \
             .where(self.usersTable.username == username)
@@ -510,6 +539,7 @@ class DatabaseHandler(object):
             return user_id[0]
 
     def create_invite_code(self, creator_id: int):
+        self.logger.debug(f"Creating new invite code with creator {creator_id} (ID)")
         code = InviteCodes.create_invite_code(self.config)
 
         new_invite_code_query = SQLLiteQuery.into(self.inviteCodesTable) \
@@ -525,6 +555,7 @@ class DatabaseHandler(object):
         self.commit_to_database()
 
     def get_permission_group_object(self, group_id: int):
+        self.logger.debug(f"Getting permission group object for {group_id} (ID)")
         get_group_permission_query = SQLLiteQuery.from_(self.userGroupsTable) \
             .select("group_title", "permissions") \
             .where(self.userGroupsTable.ID == group_id)
@@ -538,6 +569,7 @@ class DatabaseHandler(object):
         return group
 
     def return_prettier_table_names(self) -> dict:
+        self.logger.debug("Getting pretty table names from file")
         with open("databaseHandler/staticQueries/index.json", "r") as f:
             index_file = json.loads(f.read())
 
