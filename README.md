@@ -32,19 +32,25 @@ This will deploy the container on port 80, running the application in production
 
 ### Development
 
-The application exists within the `app/` folder, to begin please change directory accordingly
+The application exists within the `app/` folder
+
+In order to keep your environment clean, run:
+```shell
+python -m venv .pyenv
+. .pyenv/bin/activate
+```
 
 This project contains PyPi requirements which can be found in `app/requirements.txt`
 to install these requirements simply run:
 
 ```shell
-pip install -r requirements.txt
+pip install -r app/requirements.txt
 ```
 
 Once complete, the app can be run with
 
 ```shell
-python3.11 main.py
+python3.11 -m app
 ```
 
 This will start the flask application on port 5000, running the application in development mode.
@@ -130,7 +136,7 @@ You can assign both specific permissions and permission categories to a UserGrou
 
 The config file can be found at `app/config.ini`
 
-Please note that some configuration items in the config can only be changed before initial system setup (New Database) 
+Please note that some configuration items in the config can only be changed before initial system setup (New Database)
 
 **Changing certain config items after system setup will cause errors**
 
