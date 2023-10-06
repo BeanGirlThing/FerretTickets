@@ -112,7 +112,6 @@ class PermissionGroupObject(object):
 
 
     def build_permission_string(self):
-        # TODO some shit is broken here and idfk what, check console dipshit
         permission_string = ""
         if self.PERMISSIONS["ADMIN"]:
             return "ADMIN"
